@@ -171,6 +171,7 @@ opts.Add('builtin_pcre2', "Use the builtin pcre2 library (yes/no)", 'yes')
 opts.Add('builtin_recast', "Use the builtin recast library (yes/no)", 'yes')
 opts.Add('builtin_squish', "Use the builtin squish library (yes/no)", 'yes')
 opts.Add('builtin_zlib', "Use the builtin zlib library (yes/no)", 'yes')
+opts.Add('builtin_pjsip', "Use the builtin pjsip library (yes/no)", 'yes')
 
 # Environment setup
 opts.Add("CXX", "C++ compiler")

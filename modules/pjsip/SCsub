@@ -1,0 +1,29 @@
+#!/usr/bin/env python
+
+Import('env')
+Import('env_modules')
+
+# Thirdparty source files
+
+env_pjsip = env_modules.Clone()
+
+if (env['builtin_pjsip'] != 'no'):
+	thirdparty_dir = "#thirdparty/pjproject/"
+	thirdparty_sources = [
+	"pjsip/src/pjsua2/types.cpp",
+	"pjsip/src/pjsua2/account.cpp",
+	"pjsip/src/pjsua2/call.cpp",
+	"pjsip/src/pjsua2/json.cpp",
+	"pjsip/src/pjsua2/media.cpp",
+	"pjsip/src/pjsua2/persistent.cpp",
+	"pjsip/src/pjsua2/presence.cpp",
+	"pjsip/src/pjsua2/siptypes.cpp",
+    ]
+	thirdparty_sources = [thirdparty_dir + file for file in thirdparty_sources]
+
+	env_pjsip.add_source_files(env.modules_sources, thirdparty_sources)
+	env_pjsip.Append(CPPPATH=[thirdparty_dir])
+	env_pjsip.Append(CPPPATH=[thirdparty_dir, thirdparty_dir + "/include", thirdparty_dir + "pjsip/src/pjsua2/types.hpp"])
+	env_pjsip.Append(CPPFLAGS=["-DGODOT_ENET"])
+
+#env_pjsip.add_source_files(env.modules_sources, "*.cpp")
