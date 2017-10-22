@@ -156,7 +156,7 @@ struct Vector2 {
 	}
 
 	Vector2 rotated(real_t p_by) const;
-	Vector2 tangent() const {
+	Vector2 normal() const {
 
 		return Vector2(y, -x);
 	}

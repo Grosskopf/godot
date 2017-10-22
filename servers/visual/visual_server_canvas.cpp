@@ -453,7 +453,7 @@ void VisualServerCanvas::canvas_item_add_polyline(RID p_item, const Vector<Point
 			if (i == p_points.size() - 1) {
 				t = prev_t;
 			} else {
-				t = (p_points[i + 1] - p_points[i]).normalized().tangent();
+				t = (p_points[i + 1] - p_points[i]).normalized().normal();
 				if (i == 0) {
 					prev_t = t;
 				}

@@ -249,7 +249,7 @@ void SegmentShape2DSW::set_data(const Variant &p_data) {
 	Rect2 r = p_data;
 	a = r.position;
 	b = r.size;
-	n = (b - a).tangent();
+	n = (b - a).normal();
 
 	Rect2 aabb;
 	aabb.position = a;
@@ -655,7 +655,7 @@ void ConvexPolygonShape2DSW::set_data(const Variant &p_data) {
 
 			Vector2 p = points[i].pos;
 			Vector2 pn = points[(i + 1) % point_count].pos;
-			points[i].normal = (pn - p).tangent().normalized();
+			points[i].normal = (pn - p).normal().normalized();
 		}
 	} else {
 
@@ -797,7 +797,7 @@ bool ConcavePolygonShape2DSW::intersect_segment(const Vector2 &p_begin, const Ve
 
 								d = nd;
 								r_point = res;
-								r_normal = (b - a).tangent().normalized();
+								r_normal = (b - a).normal().normalized();
 								inters = true;
 							}
 						}
@@ -1033,7 +1033,7 @@ void ConcavePolygonShape2DSW::cull(const Rect2 &p_local_aabb, Callback p_callbac
 						Vector2 a = pointptr[s.points[0]];
 						Vector2 b = pointptr[s.points[1]];
 
-						SegmentShape2DSW ss(a, b, (b - a).tangent().normalized());
+						SegmentShape2DSW ss(a, b, (b - a).normal().normalized());
 
 						p_callback(p_userdata, &ss);
 						stack[level] = (VISIT_DONE_BIT << VISITED_BIT_SHIFT) | node;

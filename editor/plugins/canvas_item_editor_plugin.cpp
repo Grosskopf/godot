@@ -898,7 +898,7 @@ CanvasItemEditor::DragType CanvasItemEditor::_get_resize_handle_drag_type(const 
 			return dragger[i * 2];
 
 		ofs = (endpoints[i] + endpoints[next]) / 2;
-		ofs += (endpoints[next] - endpoints[i]).tangent().normalized() * (select_handle->get_size().width / 2);
+		ofs += (endpoints[next] - endpoints[i]).normal().normalized() * (select_handle->get_size().width / 2);
 
 		r_point = (endpointsl[i] + endpointsl[next]) / 2;
 
@@ -2444,7 +2444,7 @@ void CanvasItemEditor::_draw_selection() {
 					select_handle->draw(ci, (endpoints[i] + ofs - (select_handle->get_size() / 2)).floor());
 
 					ofs = (endpoints[i] + endpoints[next]) / 2;
-					ofs += (endpoints[next] - endpoints[i]).tangent().normalized() * (select_handle->get_size().width / 2);
+					ofs += (endpoints[next] - endpoints[i]).normal().normalized() * (select_handle->get_size().width / 2);
 
 					select_handle->draw(ci, (ofs - (select_handle->get_size() / 2)).floor());
 				}
@@ -2527,7 +2527,7 @@ void CanvasItemEditor::_draw_bones() {
 			E->get().to = to;
 
 			Vector2 rel = to - from;
-			Vector2 relt = rel.tangent().normalized() * bone_width;
+			Vector2 relt = rel.normal().normalized() * bone_width;
 
 			Vector<Vector2> bone_shape;
 			bone_shape.push_back(from);

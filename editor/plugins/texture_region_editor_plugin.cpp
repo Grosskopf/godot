@@ -153,7 +153,7 @@ void TextureRegionEditor::_region_draw() {
 			edit_draw->draw_texture(select_handle, (endpoints[i] + ofs - (select_handle->get_size() / 2)).floor() - draw_ofs);
 
 		ofs = (endpoints[next] - endpoints[i]) / 2;
-		ofs += (endpoints[next] - endpoints[i]).tangent().normalized() * (select_handle->get_size().width / 2);
+		ofs += (endpoints[next] - endpoints[i]).normal().normalized() * (select_handle->get_size().width / 2);
 
 		if (snap_mode != SNAP_AUTOSLICE)
 			edit_draw->draw_texture(select_handle, (endpoints[i] + ofs - (select_handle->get_size() / 2)).floor() - draw_ofs);

@@ -336,7 +336,7 @@ struct _VariantCall {
 	VCALL_LOCALMEM2R(Vector2, linear_interpolate);
 	VCALL_LOCALMEM4R(Vector2, cubic_interpolate);
 	VCALL_LOCALMEM1R(Vector2, rotated);
-	VCALL_LOCALMEM0R(Vector2, tangent);
+	VCALL_LOCALMEM0R(Vector2, normal);
 	VCALL_LOCALMEM0R(Vector2, floor);
 	VCALL_LOCALMEM1R(Vector2, snapped);
 	VCALL_LOCALMEM0R(Vector2, aspect);

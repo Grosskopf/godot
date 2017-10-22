@@ -492,7 +492,7 @@ void RasterizerCanvasGLES3::_canvas_item_render_commands(Item *p_item, Item *cur
 				} else {
 					//thicker line
 
-					Vector2 t = (line->from - line->to).normalized().tangent() * line->width * 0.5;
+					Vector2 t = (line->from - line->to).normalized().normal() * line->width * 0.5;
 
 					Vector2 verts[4] = {
 						line->from - t,

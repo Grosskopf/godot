@@ -116,7 +116,7 @@ void PathFollow2D::_update_transform() {
 	if (rotate) {
 
 		Vector2 n = (c->interpolate_baked(o + lookahead, cubic) - pos).normalized();
-		Vector2 t = -n.tangent();
+		Vector2 t = -n.normal();
 		pos += n * h_offset;
 		pos += t * v_offset;
 
