@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="UTF-8" ?>
 <class name="Path2D" inherits="Node2D" category="Core" version="3.0.alpha.custom_build">
 	<brief_description>
-		Container for a [Curve2D].
+		Path to move nodes across on [PathFollow2D] nodes. Container for a [Curve2D].
 	</brief_description>
 	<description>
 		This class is a container/Node-ification of a [Curve2D], so it can have [Node2D] properties and [Node] info.
@@ -30,6 +30,7 @@
 	</methods>
 	<members>
 		<member name="curve" type="Curve2D" setter="set_curve" getter="get_curve">
+			The path information as a [Curve2D].
 		</member>
 	</members>
 	<constants>

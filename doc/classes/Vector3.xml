@@ -37,6 +37,7 @@
 			<argument index="0" name="to" type="Vector3">
 			</argument>
 			<description>
+				Returns the vector's minimum angle to the vector [code]to[/code].
 			</description>
 		</method>
 		<method name="bounce">
