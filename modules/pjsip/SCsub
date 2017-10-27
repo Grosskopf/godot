@@ -8,7 +8,7 @@ Import('env_modules')
 env_pjsip = env_modules.Clone()
 
 if (env['builtin_pjsip'] != 'no'):
-	thirdparty_dir = "#thirdparty/pjproject/"
+	thirdparty_dir = "#thirdparty/"
 	thirdparty_sources = [
 	"pjsip/src/pjsua2/types.cpp",
 	"pjsip/src/pjsua2/account.cpp",
@@ -22,8 +22,11 @@ if (env['builtin_pjsip'] != 'no'):
 	thirdparty_sources = [thirdparty_dir + file for file in thirdparty_sources]
 
 	env_pjsip.add_source_files(env.modules_sources, thirdparty_sources)
-	env_pjsip.Append(CPPPATH=[thirdparty_dir])
-	env_pjsip.Append(CPPPATH=[thirdparty_dir, thirdparty_dir + "/include", thirdparty_dir + "pjsip/src/pjsua2/types.hpp"])
+	env_pjsip.Append(CPPPATH=[thirdparty_dir + "/pjsip", thirdparty_dir + "/pjsip/include"])
+	env_pjsip.Append(CPPPATH=[thirdparty_dir + "/pjlib", thirdparty_dir + "/pjlib/include"])
+	env_pjsip.Append(CPPPATH=[thirdparty_dir + "/pjlib-util", thirdparty_dir + "/pjlib-util/include"])
+	env_pjsip.Append(CPPPATH=[thirdparty_dir + "/pjmedia", thirdparty_dir + "/pjmedia/include"])
+	env_pjsip.Append(CPPPATH=[thirdparty_dir + "/pjnath", thirdparty_dir + "/pjnath/include"])
 	env_pjsip.Append(CPPFLAGS=["-DGODOT_ENET"])
 
 #env_pjsip.add_source_files(env.modules_sources, "*.cpp")
