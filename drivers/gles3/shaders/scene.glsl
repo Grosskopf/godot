@@ -80,6 +80,7 @@ layout(std140) uniform SceneData { //ubo:0
 	highp float shadow_dual_paraboloid_render_zfar;
 	highp float shadow_dual_paraboloid_render_side;
 
+	highp vec2 viewport_size;
 	highp vec2 screen_pixel_size;
 	highp vec2 shadow_atlas_pixel_size;
 	highp vec2 directional_shadow_pixel_size;
@@ -566,6 +567,7 @@ in vec3 normal_interp;
 uniform bool no_ambient_light;
 
 
+
 #ifdef USE_RADIANCE_MAP
 
 
@@ -663,6 +665,7 @@ layout(std140) uniform SceneData {
 	highp float shadow_dual_paraboloid_render_zfar;
 	highp float shadow_dual_paraboloid_render_side;
 
+	highp vec2 viewport_size;
 	highp vec2 screen_pixel_size;
 	highp vec2 shadow_atlas_pixel_size;
 	highp vec2 directional_shadow_pixel_size;
@@ -2045,7 +2048,7 @@ FRAGMENT_SHADER_CODE
 
 		if (fog_height_enabled) {
 			float y = (camera_matrix * vec4(vertex,1.0)).y;
-			fog_amount = max(fog_amount,pow(1.0-smoothstep(fog_height_min,fog_height_max,y),fog_height_curve));
+			fog_amount = max(fog_amount,pow(smoothstep(fog_height_min,fog_height_max,y),fog_height_curve));
 		}
 
 		float rev_amount = 1.0 - fog_amount;

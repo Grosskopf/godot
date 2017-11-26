@@ -555,7 +555,7 @@ void EditorHelp::_class_desc_select(const String &p_select) {
 		if (select.find(".") != -1) {
 			class_name = select.get_slice(".", 0);
 		} else {
-			class_name = "@Global Scope";
+			class_name = "@GlobalScope";
 		}
 		emit_signal("go_to_help", "class_enum:" + class_name + ":" + select);
 		return;
@@ -564,18 +564,37 @@ void EditorHelp::_class_desc_select(const String &p_select) {
 		emit_signal("go_to_help", "class_name:" + p_select.substr(1, p_select.length()));
 		return;
 	} else if (p_select.begins_with("@")) {
+		String tag = p_select.substr(1, 6);
+		String link = p_select.substr(7, p_select.length());
 
-		String m = p_select.substr(1, p_select.length());
+		String topic;
+		Map<String, int> *table = NULL;
 
-		if (m.find(".") != -1) {
+		if (tag == "method") {
+			topic = "class_method";
+			table = &this->method_line;
+		} else if (tag == "member") {
+			topic = "class_property";
+			table = &this->property_line;
+		} else if (tag == "enum  ") {
+			topic = "class_enum";
+			table = &this->enum_line;
+		} else if (tag == "signal") {
+			topic = "class_signal";
+			table = &this->signal_line;
+		} else {
+			return;
+		}
+
+		if (link.find(".") != -1) {
 			//must go somewhere else
 
-			emit_signal("go_to_help", "class_method:" + m.get_slice(".", 0) + ":" + m.get_slice(".", 0));
+			emit_signal("go_to_help", topic + ":" + link.get_slice(".", 0) + ":" + link.get_slice(".", 1));
 		} else {
 
-			if (!method_line.has(m))
+			if (!table->has(link))
 				return;
-			class_desc->scroll_to_line(method_line[m]);
+			class_desc->scroll_to_line((*table)[link]);
 		}
 	} else if (p_select.begins_with("http")) {
 		OS::get_singleton()->shell_open(p_select);
@@ -808,7 +827,7 @@ Error EditorHelp::_goto_desc(const String &p_class, int p_vscr) {
 			}
 			class_desc->push_cell();
 			if (describe) {
-				class_desc->push_meta("@" + cd.properties[i].name);
+				class_desc->push_meta("@member" + cd.properties[i].name);
 			}
 
 			class_desc->push_font(doc_code_font);
@@ -881,7 +900,7 @@ Error EditorHelp::_goto_desc(const String &p_class, int p_vscr) {
 
 			if (methods[i].description != "") {
 				method_descr = true;
-				class_desc->push_meta("@" + methods[i].name);
+				class_desc->push_meta("@method" + methods[i].name);
 			}
 			class_desc->push_color(headline_color);
 			_add_text(methods[i].name);
@@ -1045,11 +1064,16 @@ Error EditorHelp::_goto_desc(const String &p_class, int p_vscr) {
 			class_desc->pop(); // end monofont
 			if (cd.signals[i].description != "") {
 
+				class_desc->push_font(doc_font);
 				class_desc->push_color(comment_color);
-				class_desc->add_text(" ");
+				class_desc->push_indent(1);
+				// class_desc->add_text(" ");
 				_add_text(cd.signals[i].description);
+				class_desc->pop(); // indent
 				class_desc->pop();
+				class_desc->pop(); // font
 			}
+			class_desc->add_newline();
 			class_desc->add_newline();
 		}
 
@@ -1129,11 +1153,14 @@ Error EditorHelp::_goto_desc(const String &p_class, int p_vscr) {
 					class_desc->pop();
 					if (enum_list[i].description != "") {
 						class_desc->push_font(doc_font);
-						class_desc->add_text("  ");
+						//class_desc->add_text("  ");
+						class_desc->push_indent(1);
 						class_desc->push_color(comment_color);
 						_add_text(enum_list[i].description);
 						class_desc->pop();
 						class_desc->pop();
+						class_desc->pop(); // indent
+						class_desc->add_newline();
 					}
 
 					class_desc->add_newline();
@@ -1177,11 +1204,14 @@ Error EditorHelp::_goto_desc(const String &p_class, int p_vscr) {
 				class_desc->pop();
 				if (constants[i].description != "") {
 					class_desc->push_font(doc_font);
-					class_desc->add_text("  ");
+					class_desc->push_indent(1);
+					//class_desc->add_text("  ");
 					class_desc->push_color(comment_color);
 					_add_text(constants[i].description);
 					class_desc->pop();
 					class_desc->pop();
+					class_desc->pop(); // indent
+					class_desc->add_newline();
 				}
 
 				class_desc->add_newline();
@@ -1229,55 +1259,63 @@ Error EditorHelp::_goto_desc(const String &p_class, int p_vscr) {
 
 		for (int i = 0; i < cd.properties.size(); i++) {
 
-			method_line[cd.properties[i].name] = class_desc->get_line_count() - 2;
+			property_line[cd.properties[i].name] = class_desc->get_line_count() - 2;
 
+			class_desc->push_table(2);
+			class_desc->set_table_column_expand(1, 1);
+
+			class_desc->push_cell();
 			class_desc->push_font(doc_code_font);
 			_add_type(cd.properties[i].type, cd.properties[i].enumeration);
-
 			class_desc->add_text(" ");
+			class_desc->pop(); // font
+			class_desc->pop(); // cell
+
+			class_desc->push_cell();
+			class_desc->push_font(doc_code_font);
 			class_desc->push_color(headline_color);
 			_add_text(cd.properties[i].name);
-			class_desc->pop(); //color
+			class_desc->pop(); // color
+			class_desc->pop(); // font
+			class_desc->pop(); // cell
 
-			class_desc->add_text(" ");
-
-			class_desc->pop(); //font
+			//class_desc->add_text(" ");
 
 			if (cd.properties[i].setter != "") {
 
-				class_desc->push_font(doc_font);
+				class_desc->push_cell();
+				class_desc->pop(); // cell
 
-				class_desc->push_indent(2);
-				class_desc->push_color(comment_color);
-				class_desc->add_text("Setter: ");
-				class_desc->pop();
-
+				class_desc->push_cell();
+				class_desc->push_font(doc_code_font);
 				class_desc->push_color(text_color);
 				class_desc->add_text(cd.properties[i].setter + "(value)");
-				class_desc->pop(); //color
-
-				class_desc->pop(); //indent
-
-				class_desc->pop(); //font
+				class_desc->pop(); // color
+				class_desc->push_color(comment_color);
+				class_desc->add_text(" setter");
+				class_desc->pop(); // color
+				class_desc->pop(); // font
+				class_desc->pop(); // cell
 			}
 
 			if (cd.properties[i].getter != "") {
 
-				class_desc->push_font(doc_font);
+				class_desc->push_cell();
+				class_desc->pop(); // cell
 
-				class_desc->push_indent(2);
-				class_desc->push_color(comment_color);
-				class_desc->add_text("Getter: ");
-				class_desc->pop();
-
+				class_desc->push_cell();
+				class_desc->push_font(doc_code_font);
 				class_desc->push_color(text_color);
 				class_desc->add_text(cd.properties[i].getter + "()");
 				class_desc->pop(); //color
-
-				class_desc->pop(); //indent
-
+				class_desc->push_color(comment_color);
+				class_desc->add_text(" getter");
+				class_desc->pop(); //color
 				class_desc->pop(); //font
+				class_desc->pop(); //cell
 			}
+
+			class_desc->pop(); // table
 
 			class_desc->add_newline();
 
@@ -1433,7 +1471,6 @@ void EditorHelp::_help_callback(const String &p_topic) {
 			line = property_line[name];
 	} else if (what == "class_enum") {
 
-		print_line("go to enum:");
 		if (enum_line.has(name))
 			line = enum_line[name];
 	} else if (what == "class_theme_item") {
@@ -1459,9 +1496,10 @@ static void _add_text_to_rt(const String &p_bbcode, RichTextLabel *p_rt) {
 	Color font_color_hl = p_rt->get_color("headline_color", "EditorHelp");
 	Color link_color = p_rt->get_color("accent_color", "Editor").linear_interpolate(font_color_hl, 0.8);
 
-	String bbcode = p_bbcode.replace("\t", " ").replace("\r", " ").strip_edges();
+	String bbcode = p_bbcode.dedent().replace("\t", "").replace("\r", "").strip_edges();
 
 	List<String> tag_stack;
+	bool code_tag = false;
 
 	int pos = 0;
 	while (pos < bbcode.length()) {
@@ -1472,7 +1510,10 @@ static void _add_text_to_rt(const String &p_bbcode, RichTextLabel *p_rt) {
 			brk_pos = bbcode.length();
 
 		if (brk_pos > pos) {
-			p_rt->add_text(bbcode.substr(pos, brk_pos - pos));
+			String text = bbcode.substr(pos, brk_pos - pos);
+			if (!code_tag)
+				text = text.replace("\n", "\n\n");
+			p_rt->add_text(text);
 		}
 
 		if (brk_pos == bbcode.length())
@@ -1481,7 +1522,11 @@ static void _add_text_to_rt(const String &p_bbcode, RichTextLabel *p_rt) {
 		int brk_end = bbcode.find("]", brk_pos + 1);
 
 		if (brk_end == -1) {
-			p_rt->add_text(bbcode.substr(brk_pos, bbcode.length() - brk_pos));
+
+			String text = bbcode.substr(brk_pos, bbcode.length() - brk_pos);
+			if (!code_tag)
+				text = text.replace("\n", "\n\n");
+			p_rt->add_text(text);
 
 			break;
 		}
@@ -1490,27 +1535,31 @@ static void _add_text_to_rt(const String &p_bbcode, RichTextLabel *p_rt) {
 
 		if (tag.begins_with("/")) {
 			bool tag_ok = tag_stack.size() && tag_stack.front()->get() == tag.substr(1, tag.length());
-			if (tag_stack.size()) {
-			}
 
 			if (!tag_ok) {
 
 				p_rt->add_text("[");
-				pos++;
+				pos = brk_pos + 1;
 				continue;
 			}
 
 			tag_stack.pop_front();
 			pos = brk_end + 1;
+			code_tag = false;
 			if (tag != "/img")
 				p_rt->pop();
+		} else if (code_tag) {
 
-		} else if (tag.begins_with("method ")) {
+			p_rt->add_text("[");
+			pos = brk_pos + 1;
 
-			String m = tag.substr(7, tag.length());
+		} else if (tag.begins_with("method ") || tag.begins_with("member ") || tag.begins_with("signal ") || tag.begins_with("enum ")) {
+
+			String link_target = tag.substr(tag.find(" ") + 1, tag.length());
+			String link_tag = tag.substr(0, tag.find(" ")).rpad(6);
 			p_rt->push_color(link_color);
-			p_rt->push_meta("@" + m);
-			p_rt->add_text(m + "()");
+			p_rt->push_meta("@" + link_tag + link_target);
+			p_rt->add_text(link_target + (tag.begins_with("method ") ? "()" : ""));
 			p_rt->pop();
 			p_rt->pop();
 			pos = brk_end + 1;
@@ -1540,6 +1589,7 @@ static void _add_text_to_rt(const String &p_bbcode, RichTextLabel *p_rt) {
 
 			//use monospace font
 			p_rt->push_font(doc_code_font);
+			code_tag = true;
 			pos = brk_end + 1;
 			tag_stack.push_front(tag);
 		} else if (tag == "center") {

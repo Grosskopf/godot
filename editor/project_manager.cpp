@@ -125,7 +125,7 @@ private:
 		}
 
 		if (valid_path == "") {
-			set_message(TTR("The path does not exists."), MESSAGE_ERROR);
+			set_message(TTR("The path does not exist."), MESSAGE_ERROR);
 			memdelete(d);
 			return "";
 		}
@@ -233,7 +233,7 @@ private:
 
 			fdialog->set_mode(FileDialog::MODE_OPEN_FILE);
 			fdialog->clear_filters();
-			fdialog->add_filter("project.godot ; " _MKSTR(VERSION_NAME) " Project");
+			fdialog->add_filter("project.godot ; " VERSION_NAME " Project");
 		} else {
 			fdialog->set_mode(FileDialog::MODE_OPEN_DIR);
 		}
@@ -284,7 +284,6 @@ private:
 			}
 
 			ProjectSettings *current = memnew(ProjectSettings);
-			current->add_singleton(ProjectSettings::Singleton("Current"));
 
 			if (current->setup(dir, "")) {
 				set_message(TTR("Couldn't get project.godot in project path."), MESSAGE_ERROR);
@@ -384,7 +383,7 @@ private:
 
 							//read
 							unzOpenCurrentFile(pkg);
-							unzReadCurrentFile(pkg, data.ptr(), data.size());
+							unzReadCurrentFile(pkg, data.ptrw(), data.size());
 							unzCloseCurrentFile(pkg);
 
 							FileAccess *f = FileAccess::open(dir.plus_file(path), FileAccess::WRITE);
@@ -503,7 +502,6 @@ public:
 			name_container->show();
 
 			ProjectSettings *current = memnew(ProjectSettings);
-			current->add_singleton(ProjectSettings::Singleton("Current"));
 
 			if (current->setup(project_path->get_text(), "")) {
 				set_message(TTR("Couldn't get project.godot in the project path."), MESSAGE_ERROR);
@@ -1053,7 +1051,7 @@ void ProjectManager::_load_recent_projects() {
 		ec->set_custom_minimum_size(Size2(0, 1));
 		vb->add_child(ec);
 		Label *title = memnew(Label(project_name));
-		title->add_font_override("font", gui_base->get_font("large", "Fonts"));
+		title->add_font_override("font", gui_base->get_font("title", "EditorFonts"));
 		title->add_color_override("font_color", font_color);
 		title->set_clip_text(true);
 		vb->add_child(title);
@@ -1485,14 +1483,13 @@ ProjectManager::ProjectManager() {
 	String cp;
 	cp.push_back(0xA9);
 	cp.push_back(0);
-	OS::get_singleton()->set_window_title(_MKSTR(VERSION_NAME) + String(" - ") + TTR("Project Manager") + " - " + cp + " 2008-2017 Juan Linietsky, Ariel Manzur & Godot Contributors");
+	OS::get_singleton()->set_window_title(VERSION_NAME + String(" - ") + TTR("Project Manager") + " - " + cp + " 2008-2017 Juan Linietsky, Ariel Manzur & Godot Contributors");
 
 	HBoxContainer *top_hb = memnew(HBoxContainer);
 	vb->add_child(top_hb);
 	CenterContainer *ccl = memnew(CenterContainer);
 	Label *l = memnew(Label);
-	l->set_text(_MKSTR(VERSION_NAME) + String(" - ") + TTR("Project Manager"));
-	l->add_font_override("font", gui_base->get_font("doc", "EditorFonts"));
+	l->set_text(VERSION_NAME + String(" - ") + TTR("Project Manager"));
 	ccl->add_child(l);
 	top_hb->add_child(ccl);
 	top_hb->add_spacer();
@@ -1501,11 +1498,8 @@ ProjectManager::ProjectManager() {
 	if (hash.length() != 0)
 		hash = "." + hash.left(7);
 	l->set_text("v" VERSION_MKSTRING "" + hash);
-	//l->add_font_override("font",get_font("bold","Fonts"));
 	l->set_align(Label::ALIGN_CENTER);
 	top_hb->add_child(l);
-	//vb->add_child(memnew(HSeparator));
-	//vb->add_margin_child("\n",memnew(Control));
 
 	Control *center_box = memnew(Control);
 	center_box->set_v_size_flags(SIZE_EXPAND_FILL);

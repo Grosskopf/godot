@@ -102,6 +102,7 @@ void VisualServerRaster::draw() {
 
 	VSG::viewport->draw_viewports();
 	VSG::scene->render_probes();
+	_draw_margins();
 	VSG::rasterizer->end_frame();
 
 	while (frame_drawn_callbacks.front()) {
@@ -120,7 +121,7 @@ void VisualServerRaster::draw() {
 		frame_drawn_callbacks.pop_front();
 	}
 
-	_draw_margins();
+	emit_signal("frame_drawn_in_thread");
 }
 void VisualServerRaster::sync() {
 }

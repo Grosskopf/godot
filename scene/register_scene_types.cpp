@@ -83,10 +83,10 @@
 #include "scene/gui/link_button.h"
 #include "scene/gui/margin_container.h"
 #include "scene/gui/menu_button.h"
+#include "scene/gui/nine_patch_rect.h"
 #include "scene/gui/option_button.h"
 #include "scene/gui/panel.h"
 #include "scene/gui/panel_container.h"
-#include "scene/gui/nine_patch_rect.h"
 #include "scene/gui/popup_menu.h"
 #include "scene/gui/progress_bar.h"
 #include "scene/gui/reference_rect.h"
@@ -542,6 +542,7 @@ void register_scene_types() {
 	ClassDB::register_class<StyleBoxEmpty>();
 	ClassDB::register_class<StyleBoxTexture>();
 	ClassDB::register_class<StyleBoxFlat>();
+	ClassDB::register_class<StyleBoxLine>();
 	ClassDB::register_class<Theme>();
 
 	ClassDB::register_class<PolygonPathFinder>();

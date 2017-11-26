@@ -184,7 +184,7 @@ Ref<Texture> EditorPackedScenePreviewPlugin::generate(const RES &p_from) {
 
 Ref<Texture> EditorPackedScenePreviewPlugin::generate_from_path(const String &p_path) {
 
-	String temp_path = EditorSettings::get_singleton()->get_settings_path().plus_file("tmp");
+	String temp_path = EditorSettings::get_singleton()->get_cache_dir();
 	String cache_base = ProjectSettings::get_singleton()->globalize_path(p_path).md5_text();
 	cache_base = temp_path.plus_file("resthumb-" + cache_base);
 
@@ -278,11 +278,11 @@ EditorMaterialPreviewPlugin::EditorMaterialPreviewPlugin() {
 	VS::get_singleton()->camera_set_transform(camera, Transform(Basis(), Vector3(0, 0, 3)));
 	VS::get_singleton()->camera_set_perspective(camera, 45, 0.1, 10);
 
-	light = VS::get_singleton()->light_create(VS::LIGHT_DIRECTIONAL);
+	light = VS::get_singleton()->directional_light_create();
 	light_instance = VS::get_singleton()->instance_create2(light, scenario);
 	VS::get_singleton()->instance_set_transform(light_instance, Transform().looking_at(Vector3(-1, -1, -1), Vector3(0, 1, 0)));
 
-	light2 = VS::get_singleton()->light_create(VS::LIGHT_DIRECTIONAL);
+	light2 = VS::get_singleton()->directional_light_create();
 	VS::get_singleton()->light_set_color(light2, Color(0.7, 0.7, 0.7));
 	//VS::get_singleton()->light_set_color(light2, Color(0.7, 0.7, 0.7));
 
@@ -790,13 +790,13 @@ Ref<Texture> EditorMeshPreviewPlugin::generate(const RES &p_from) {
 
 	VS::get_singleton()->instance_set_base(mesh_instance, mesh->get_rid());
 
-	Rect3 aabb = mesh->get_aabb();
+	AABB aabb = mesh->get_aabb();
 	Vector3 ofs = aabb.position + aabb.size * 0.5;
 	aabb.position -= ofs;
 	Transform xform;
 	xform.basis = Basis().rotated(Vector3(0, 1, 0), -Math_PI * 0.125);
 	xform.basis = Basis().rotated(Vector3(1, 0, 0), Math_PI * 0.125) * xform.basis;
-	Rect3 rot_aabb = xform.xform(aabb);
+	AABB rot_aabb = xform.xform(aabb);
 	float m = MAX(rot_aabb.size.x, rot_aabb.size.y) * 0.5;
 	if (m == 0)
 		return Ref<Texture>();
@@ -850,11 +850,11 @@ EditorMeshPreviewPlugin::EditorMeshPreviewPlugin() {
 	//VS::get_singleton()->camera_set_perspective(camera,45,0.1,10);
 	VS::get_singleton()->camera_set_orthogonal(camera, 1.0, 0.01, 1000.0);
 
-	light = VS::get_singleton()->light_create(VS::LIGHT_DIRECTIONAL);
+	light = VS::get_singleton()->directional_light_create();
 	light_instance = VS::get_singleton()->instance_create2(light, scenario);
 	VS::get_singleton()->instance_set_transform(light_instance, Transform().looking_at(Vector3(-1, -1, -1), Vector3(0, 1, 0)));
 
-	light2 = VS::get_singleton()->light_create(VS::LIGHT_DIRECTIONAL);
+	light2 = VS::get_singleton()->directional_light_create();
 	VS::get_singleton()->light_set_color(light2, Color(0.7, 0.7, 0.7));
 	//VS::get_singleton()->light_set_color(light2, VS::LIGHT_COLOR_SPECULAR, Color(0.0, 0.0, 0.0));
 	light_instance2 = VS::get_singleton()->instance_create2(light2, scenario);

@@ -625,6 +625,8 @@ GDMono::~GDMono() {
 
 	if (gdmono_log)
 		memdelete(gdmono_log);
+
+	singleton = NULL;
 }
 
 _GodotSharp *_GodotSharp::singleton = NULL;
@@ -703,7 +705,7 @@ bool _GodotSharp::is_domain_loaded() {
 
 void _GodotSharp::queue_dispose(Object *p_object) {
 
-	if (Thread::get_main_id() == Thread::get_caller_id() && !GDMono::get_singleton()->is_finalizing_scripts_domain()) {
+	if (GDMonoUtils::is_main_thread() && !GDMono::get_singleton()->is_finalizing_scripts_domain()) {
 		_dispose_object(p_object);
 	} else {
 #ifndef NO_THREADS
@@ -720,7 +722,7 @@ void _GodotSharp::queue_dispose(Object *p_object) {
 
 void _GodotSharp::queue_dispose(NodePath *p_node_path) {
 
-	if (Thread::get_main_id() == Thread::get_caller_id() && !GDMono::get_singleton()->is_finalizing_scripts_domain()) {
+	if (GDMonoUtils::is_main_thread() && !GDMono::get_singleton()->is_finalizing_scripts_domain()) {
 		memdelete(p_node_path);
 	} else {
 #ifndef NO_THREADS
@@ -737,7 +739,7 @@ void _GodotSharp::queue_dispose(NodePath *p_node_path) {
 
 void _GodotSharp::queue_dispose(RID *p_rid) {
 
-	if (Thread::get_main_id() == Thread::get_caller_id() && !GDMono::get_singleton()->is_finalizing_scripts_domain()) {
+	if (GDMonoUtils::is_main_thread() && !GDMono::get_singleton()->is_finalizing_scripts_domain()) {
 		memdelete(p_rid);
 	} else {
 #ifndef NO_THREADS

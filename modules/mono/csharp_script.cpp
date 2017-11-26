@@ -122,6 +122,9 @@ void CSharpLanguage::init() {
 
 void CSharpLanguage::finish() {
 
+	// Release gchandle bindings before finalizing mono runtime
+	gchandle_bindings.clear();
+
 	if (gdmono) {
 		memdelete(gdmono);
 		gdmono = NULL;
@@ -297,6 +300,20 @@ Ref<Script> CSharpLanguage::get_template(const String &p_class_name, const Strin
 	return script;
 }
 
+bool CSharpLanguage::is_using_templates() {
+
+	return true;
+}
+
+void CSharpLanguage::make_template(const String &p_class_name, const String &p_base_class_name, Ref<Script> &p_script) {
+
+	String src = p_script->get_source_code();
+	src = src.replace("%BASE%", p_base_class_name)
+				  .replace("%CLASS%", p_class_name)
+				  .replace("%TS%", _get_indentation());
+	p_script->set_source_code(src);
+}
+
 Script *CSharpLanguage::create_script() const {
 
 	return memnew(CSharpScript);
@@ -329,7 +346,7 @@ static String variant_type_to_managed_name(const String &p_var_type_name) {
 			Variant::TRANSFORM2D,
 			Variant::PLANE,
 			Variant::QUAT,
-			Variant::RECT3,
+			Variant::AABB,
 			Variant::BASIS,
 			Variant::TRANSFORM,
 			Variant::COLOR,
@@ -394,6 +411,25 @@ String CSharpLanguage::make_function(const String &p_class, const String &p_name
 #else
 	return String();
 #endif
+}
+
+String CSharpLanguage::_get_indentation() const {
+#ifdef TOOLS_ENABLED
+	if (Engine::get_singleton()->is_editor_hint()) {
+		bool use_space_indentation = EDITOR_DEF("text_editor/indent/type", 0);
+
+		if (use_space_indentation) {
+			int indent_size = EDITOR_DEF("text_editor/indent/size", 4);
+
+			String space_indent = "";
+			for (int i = 0; i < indent_size; i++) {
+				space_indent += " ";
+			}
+			return space_indent;
+		}
+	}
+#endif
+	return "\t";
 }
 
 void CSharpLanguage::frame() {
@@ -477,6 +513,7 @@ void CSharpLanguage::reload_tool_script(const Ref<Script> &p_script, bool p_soft
 	(void)p_script; // UNUSED
 
 #ifdef TOOLS_ENABLED
+	MonoReloadNode::get_singleton()->restart_reload_timer();
 	reload_assemblies_if_needed(p_soft_reload);
 #endif
 }
@@ -624,6 +661,9 @@ void CSharpLanguage::reload_assemblies_if_needed(bool p_soft_reload) {
 
 		//if instance states were saved, set them!
 	}
+
+	if (Engine::get_singleton()->is_editor_hint())
+		EditorNode::get_singleton()->get_property_editor()->update_tree();
 }
 #endif
 
@@ -789,6 +829,14 @@ void *CSharpLanguage::alloc_instance_binding_data(Object *p_object) {
 }
 
 void CSharpLanguage::free_instance_binding_data(void *p_data) {
+
+	if (GDMono::get_singleton() == NULL) {
+#ifdef DEBUG_ENABLED
+		CRASH_COND(!gchandle_bindings.empty());
+#endif
+		// Mono runtime finalized, all the gchandle bindings were already released
+		return;
+	}
 
 #ifndef NO_THREADS
 	script_bind_lock->lock();
@@ -1407,6 +1455,34 @@ void CSharpScript::_resource_path_changed() {
 	}
 }
 
+bool CSharpScript::_get(const StringName &p_name, Variant &r_ret) const {
+
+	if (p_name == CSharpLanguage::singleton->string_names._script_source) {
+
+		r_ret = get_source_code();
+		return true;
+	}
+
+	return false;
+}
+
+bool CSharpScript::_set(const StringName &p_name, const Variant &p_value) {
+
+	if (p_name == CSharpLanguage::singleton->string_names._script_source) {
+
+		set_source_code(p_value);
+		reload();
+		return true;
+	}
+
+	return false;
+}
+
+void CSharpScript::_get_property_list(List<PropertyInfo> *p_properties) const {
+
+	p_properties->push_back(PropertyInfo(Variant::STRING, CSharpLanguage::singleton->string_names._script_source, PROPERTY_HINT_NONE, "", PROPERTY_USAGE_NOEDITOR));
+}
+
 void CSharpScript::_bind_methods() {
 
 	ClassDB::bind_vararg_method(METHOD_FLAGS_DEFAULT, "new", &CSharpScript::_new, MethodInfo(Variant::OBJECT, "new"));
@@ -1980,5 +2056,6 @@ CSharpLanguage::StringNameCache::StringNameCache() {
 	_set = StaticCString::create("_set");
 	_get = StaticCString::create("_get");
 	_notification = StaticCString::create("_notification");
+	_script_source = StaticCString::create("script/source");
 	dotctor = StaticCString::create(".ctor");
 }

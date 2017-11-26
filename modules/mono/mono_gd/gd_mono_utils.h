@@ -82,7 +82,7 @@ struct MonoCache {
 	GDMonoClass *class_Basis;
 	GDMonoClass *class_Quat;
 	GDMonoClass *class_Transform;
-	GDMonoClass *class_Rect3;
+	GDMonoClass *class_AABB;
 	GDMonoClass *class_Color;
 	GDMonoClass *class_Plane;
 	GDMonoClass *class_NodePath;
@@ -149,6 +149,10 @@ void attach_current_thread();
 void detach_current_thread();
 MonoThread *get_current_thread();
 
+_FORCE_INLINE_ bool is_main_thread() {
+	return mono_domain_get() != NULL && mono_thread_get_main() == mono_thread_current();
+}
+
 GDMonoClass *get_object_class(MonoObject *p_object);
 GDMonoClass *type_get_proxy_class(const StringName &p_type);
 GDMonoClass *get_class_native_base(GDMonoClass *p_class);
@@ -162,7 +166,7 @@ MonoDomain *create_domain(const String &p_friendly_name);
 
 String get_exception_name_and_message(MonoObject *p_ex);
 
-} // GDMonoUtils
+} // namespace GDMonoUtils
 
 #define NATIVE_GDMONOCLASS_NAME(m_class) (GDMonoMarshal::mono_string_to_godot((MonoString *)m_class->get_field(BINDINGS_NATIVE_NAME_FIELD)->get_value(NULL)))
 

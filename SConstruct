@@ -1,4 +1,3 @@
-
 #!/usr/bin/env python
 
 EnsureSConsVersion(0, 98, 1)
@@ -11,7 +10,8 @@ import glob
 import sys
 import methods
 
-methods.update_version()
+# moved below to compensate with module version string
+# methods.update_version()
 
 # scan possible build platforms
 
@@ -22,6 +22,7 @@ platform_flags = {}  # flags for each platform
 active_platforms = []
 active_platform_ids = []
 platform_exporters = []
+platform_apis = []
 global_defaults = []
 
 for x in glob.glob("platform/*"):
@@ -34,6 +35,8 @@ for x in glob.glob("platform/*"):
 
     if (os.path.exists(x + "/export/export.cpp")):
         platform_exporters.append(x[9:])
+    if (os.path.exists(x + "/api/api.cpp")):
+        platform_apis.append(x[9:])
     if (os.path.exists(x + "/globals/global_defaults.cpp")):
         global_defaults.append(x[9:])
     if (detect.is_active()):
@@ -87,6 +90,7 @@ env_base.android_appattributes_chunk = ""
 env_base.disabled_modules = []
 env_base.use_ptrcall = False
 env_base.split_drivers = False
+env_base.module_version_string = ""
 
 # To decide whether to rebuild a file, use the MD5 sum only if the timestamp has changed.
 # http://scons.org/doc/production/HTML/scons-user/ch06.html#idm139837621851792
@@ -110,6 +114,8 @@ env_base.__class__.android_add_to_attributes = methods.android_add_to_attributes
 env_base.__class__.android_add_gradle_plugin = methods.android_add_gradle_plugin
 env_base.__class__.android_add_gradle_classpath = methods.android_add_gradle_classpath
 env_base.__class__.disable_module = methods.disable_module
+
+env_base.__class__.add_module_version_string = methods.add_module_version_string
 
 env_base.__class__.add_source_files = methods.add_source_files
 env_base.__class__.use_windows_spawn_fix = methods.use_windows_spawn_fix
@@ -139,6 +145,7 @@ opts.Add('p', "Platform (alias for 'platform')", '')
 opts.Add('platform', "Target platform (%s)" % ('|'.join(platform_list), ), '')
 opts.Add(EnumVariable('target', "Compilation target", 'debug', ('debug', 'release_debug', 'release')))
 opts.Add(BoolVariable('tools', "Build the tools a.k.a. the Godot editor", True))
+opts.Add(BoolVariable('use_lto', 'Use linking time optimization', False))
 
 # Components
 opts.Add(BoolVariable('deprecated', "Enable deprecated features", True))
@@ -211,6 +218,7 @@ env_base.Append(CPPPATH=['#core', '#core/math', '#editor', '#drivers', '#'])
 
 # configure ENV for platform
 env_base.platform_exporters = platform_exporters
+env_base.platform_apis = platform_apis
 
 """
 sys.path.append("./platform/"+env_base["platform"])
@@ -266,9 +274,12 @@ if selected_platform in platform_list:
                 if len(pieces) > 0:
                     basename = pieces[0]
                     basename = basename.replace('\\\\', '/')
-                    env.vs_srcs = env.vs_srcs + [basename + ".cpp"]
-                    env.vs_incs = env.vs_incs + [basename + ".h"]
-                    # print basename
+                    if os.path.isfile(basename + ".h"):
+                        env.vs_incs = env.vs_incs + [basename + ".h"]
+                    if os.path.isfile(basename + ".c"):
+                        env.vs_srcs = env.vs_srcs + [basename + ".c"]
+                    elif os.path.isfile(basename + ".cpp"):
+                        env.vs_srcs = env.vs_srcs + [basename + ".cpp"]
         env.AddToVSProject = AddToVSProject
 
     env.extra_suffix = ""
@@ -315,6 +326,8 @@ if selected_platform in platform_list:
             env.Append(CCFLAGS=['/W2'] + disable_nonessential_warnings)
         else: # 'no'
             env.Append(CCFLAGS=['/w'])
+        # Set exception handling model to avoid warnings caused by Windows system headers.
+        env.Append(CCFLAGS=['/EHsc'])
     else: # Rest of the world
         if (env["warnings"] == 'extra'):
             env.Append(CCFLAGS=['-Wall', '-Wextra'])
@@ -358,16 +371,11 @@ if selected_platform in platform_list:
 
     suffix += env.extra_suffix
 
-    env["PROGSUFFIX"] = suffix + env["PROGSUFFIX"]
-    env["OBJSUFFIX"] = suffix + env["OBJSUFFIX"]
-    env["LIBSUFFIX"] = suffix + env["LIBSUFFIX"]
-    env["SHLIBSUFFIX"] = suffix + env["SHLIBSUFFIX"]
-
     sys.path.remove("./platform/" + selected_platform)
     sys.modules.pop('detect')
 
     env.module_list = []
-    env.doc_class_path={}
+    env.doc_class_path = {}
 
     for x in module_list:
         if not env['module_' + x + '_enabled']:
@@ -383,13 +391,21 @@ if selected_platform in platform_list:
                  doc_classes = config.get_doc_classes()
                  doc_path = config.get_doc_path()
                  for c in doc_classes:
-                     env.doc_class_path[c]="modules/"+x+"/"+doc_path
+                     env.doc_class_path[c] = "modules/" + x + "/" + doc_path
             except:
                 pass
 
-
         sys.path.remove(tmppath)
         sys.modules.pop('config')
+
+    methods.update_version(env.module_version_string)
+
+    suffix += env.module_version_string
+
+    env["PROGSUFFIX"] = suffix + env["PROGSUFFIX"]
+    env["OBJSUFFIX"] = suffix + env["OBJSUFFIX"]
+    env["LIBSUFFIX"] = suffix + env["LIBSUFFIX"]
+    env["SHLIBSUFFIX"] = suffix + env["SHLIBSUFFIX"]
 
     if (env.use_ptrcall):
         env.Append(CPPFLAGS=['-DPTRCALL_ENABLED'])
@@ -418,6 +434,11 @@ if selected_platform in platform_list:
     if (True): # FIXME: detect GLES3
         env.Append( BUILDERS = { 'GLES3_GLSL' : env.Builder(action = methods.build_gles3_headers, suffix = 'glsl.gen.h',src_suffix = '.glsl') } )
 
+    scons_cache_path = os.environ.get("SCONS_CACHE")
+    if scons_cache_path != None:
+        CacheDir(scons_cache_path)
+        print("Scons cache enabled... (path: '" + scons_cache_path + "')")
+
     Export('env')
 
     # build subdirs, the build order is dependent on link order.
@@ -428,6 +449,7 @@ if selected_platform in platform_list:
     SConscript("editor/SCsub")
     SConscript("drivers/SCsub")
 
+    SConscript("platform/SCsub")
     SConscript("modules/SCsub")
     SConscript("main/SCsub")
 
@@ -437,6 +459,7 @@ if selected_platform in platform_list:
     if env['vsproj']:
         env['CPPPATH'] = [Dir(path) for path in env['CPPPATH']]
         methods.generate_vs_project(env, GetOption("num_jobs"))
+        methods.generate_cpp_hint_file("cpp.hint")
 
     # Check for the existence of headers
     conf = Configure(env)

@@ -539,7 +539,7 @@ void Viewport::_notification(int p_what) {
 
 						Vector2 point = get_canvas_transform().affine_inverse().xform(pos);
 						Physics2DDirectSpaceState::ShapeResult res[64];
-						int rc = ss2d->intersect_point(point, res, 64, Set<RID>(), 0xFFFFFFFF, 0xFFFFFFFF, true);
+						int rc = ss2d->intersect_point(point, res, 64, Set<RID>(), 0xFFFFFFFF, true);
 						for (int i = 0; i < rc; i++) {
 
 							if (res[i].collider_id && res[i].collider) {
@@ -622,7 +622,7 @@ void Viewport::_notification(int p_what) {
 							PhysicsDirectSpaceState *space = PhysicsServer::get_singleton()->space_get_direct_state(find_world()->get_space());
 							if (space) {
 
-								bool col = space->intersect_ray(from, from + dir * 10000, result, Set<RID>(), 0xFFFFFFFF, 0xFFFFFFFF, true);
+								bool col = space->intersect_ray(from, from + dir * 10000, result, Set<RID>(), 0xFFFFFFFF, true);
 								ObjectID new_collider = 0;
 								if (col) {
 
@@ -658,7 +658,7 @@ void Viewport::_notification(int p_what) {
 					PhysicsDirectSpaceState *space = PhysicsServer::get_singleton()->space_get_direct_state(find_world()->get_space());
 					if (space) {
 
-						bool col = space->intersect_ray(from, from + dir * 10000, result, Set<RID>(), 0xFFFFFFFF, 0xFFFFFFFF, true);
+						bool col = space->intersect_ray(from, from + dir * 10000, result, Set<RID>(), 0xFFFFFFFF, true);
 						ObjectID new_collider = 0;
 						if (col) {
 							CollisionObject *co = Object::cast_to<CollisionObject>(result.collider);
@@ -2007,6 +2007,30 @@ void Viewport::_gui_input_event(Ref<InputEvent> p_event) {
 				touch_event->set_position(gui.focus_inv_xform.xform(pos));
 
 				_gui_call_input(gui.mouse_focus, touch_event);
+			}
+			get_tree()->set_input_as_handled();
+			return;
+		}
+	}
+
+	Ref<InputEventGesture> gesture_event = p_event;
+	if (gesture_event.is_valid()) {
+
+		Size2 pos = gesture_event->get_position();
+
+		Control *over = _gui_find_control(pos);
+		if (over) {
+
+			if (over->can_process()) {
+
+				gesture_event = gesture_event->xformed_by(Transform2D()); //make a copy
+				if (over == gui.mouse_focus) {
+					pos = gui.focus_inv_xform.xform(pos);
+				} else {
+					pos = over->get_global_transform_with_canvas().affine_inverse().xform(pos);
+				}
+				gesture_event->set_position(pos);
+				_gui_call_input(over, gesture_event);
 			}
 			get_tree()->set_input_as_handled();
 			return;

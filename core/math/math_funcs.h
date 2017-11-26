@@ -39,6 +39,7 @@
 #include <math.h>
 
 #define Math_PI 3.14159265358979323846
+#define Math_TAU 6.28318530717958647692
 #define Math_SQRT12 0.7071067811865475244008443621048490
 #define Math_LN2 0.693147180559945309417
 #define Math_INF INFINITY
@@ -206,6 +207,9 @@ public:
 
 	static _ALWAYS_INLINE_ double round(double p_val) { return (p_val >= 0) ? Math::floor(p_val + 0.5) : -Math::floor(-p_val + 0.5); }
 	static _ALWAYS_INLINE_ float round(float p_val) { return (p_val >= 0) ? Math::floor(p_val + 0.5) : -Math::floor(-p_val + 0.5); }
+
+	static int wrapi(int value, int min, int max);
+	static float wrapf(float value, float min, float max);
 
 	// double only, as these functions are mainly used by the editor and not performance-critical,
 	static double ease(double p_x, double p_c);

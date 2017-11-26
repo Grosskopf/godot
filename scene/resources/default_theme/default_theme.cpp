@@ -310,7 +310,7 @@ void fill_default_theme(Ref<Theme> &theme, const Ref<Font> &default_font, const 
 	theme->set_stylebox("pressed", "OptionButton", sb_optbutton_pressed);
 	theme->set_stylebox("hover", "OptionButton", sb_optbutton_hover);
 	theme->set_stylebox("disabled", "OptionButton", sb_optbutton_disabled);
-	theme->set_stylebox("focus", "OptionButton", sb_button_focus);
+	theme->set_stylebox("focus", "OptionButton", sb_optbutton_focus);
 
 	theme->set_icon("arrow", "OptionButton", make_icon(option_arrow_png));
 
@@ -328,8 +328,8 @@ void fill_default_theme(Ref<Theme> &theme, const Ref<Font> &default_font, const 
 
 	theme->set_stylebox("normal", "MenuButton", sb_button_normal);
 	theme->set_stylebox("pressed", "MenuButton", sb_button_pressed);
-	theme->set_stylebox("hover", "MenuButton", sb_button_pressed);
-	theme->set_stylebox("disabled", "MenuButton", make_empty_stylebox(0, 0, 0, 0));
+	theme->set_stylebox("hover", "MenuButton", sb_button_hover);
+	theme->set_stylebox("disabled", "MenuButton", sb_button_disabled);
 	theme->set_stylebox("focus", "MenuButton", sb_button_focus);
 
 	theme->set_font("font", "MenuButton", default_font);
@@ -835,39 +835,6 @@ void fill_default_theme(Ref<Theme> &theme, const Ref<Font> &default_font, const 
 	theme->set_constant("separation", "VSplitContainer", 12 * scale);
 	theme->set_constant("autohide", "HSplitContainer", 1 * scale);
 	theme->set_constant("autohide", "VSplitContainer", 1 * scale);
-
-	// HButtonArray
-	theme->set_stylebox("normal", "HButtonArray", sb_button_normal);
-	theme->set_stylebox("selected", "HButtonArray", sb_button_pressed);
-	theme->set_stylebox("hover", "HButtonArray", sb_button_hover);
-
-	theme->set_font("font", "HButtonArray", default_font);
-	theme->set_font("font_selected", "HButtonArray", default_font);
-
-	theme->set_color("font_color", "HButtonArray", control_font_color_low);
-	theme->set_color("font_color_selected", "HButtonArray", control_font_color_hover);
-
-	theme->set_constant("icon_separator", "HButtonArray", 2 * scale);
-	theme->set_constant("button_separator", "HButtonArray", 4 * scale);
-
-	theme->set_stylebox("focus", "HButtonArray", focus);
-
-	// VButtonArray
-
-	theme->set_stylebox("normal", "VButtonArray", sb_button_normal);
-	theme->set_stylebox("selected", "VButtonArray", sb_button_pressed);
-	theme->set_stylebox("hover", "VButtonArray", sb_button_hover);
-
-	theme->set_font("font", "VButtonArray", default_font);
-	theme->set_font("font_selected", "VButtonArray", default_font);
-
-	theme->set_color("font_color", "VButtonArray", control_font_color_low);
-	theme->set_color("font_color_selected", "VButtonArray", control_font_color_hover);
-
-	theme->set_constant("icon_separator", "VButtonArray", 2 * scale);
-	theme->set_constant("button_separator", "VButtonArray", 4 * scale);
-
-	theme->set_stylebox("focus", "VButtonArray", focus);
 
 	// ReferenceRect
 

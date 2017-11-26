@@ -46,21 +46,6 @@
 #include "../utils/mono_reg_utils.h"
 #endif
 
-class MonoReloadNode : public Node {
-	GDCLASS(MonoReloadNode, Node)
-
-protected:
-	void _notification(int p_what) {
-		switch (p_what) {
-			case MainLoop::NOTIFICATION_WM_FOCUS_IN: {
-				CSharpLanguage::get_singleton()->reload_assemblies_if_needed(true);
-			} break;
-			default: {
-			} break;
-		};
-	}
-};
-
 GodotSharpEditor *GodotSharpEditor::singleton = NULL;
 
 bool GodotSharpEditor::_create_project_solution() {
@@ -186,11 +171,6 @@ Error GodotSharpEditor::open_in_external_editor(const Ref<Script> &p_script, int
 			String script_path = ProjectSettings::get_singleton()->globalize_path(p_script->get_path());
 			monodevel_instance->execute(script_path);
 		} break;
-		case EDITOR_VISUAL_STUDIO:
-		// TODO
-		// devenv <PathToSolutionFolder>
-		// devenv /edit <PathToCsFile> /command "edit.goto <Line>"
-		// HKEY_LOCAL_MACHINE\SOFTWARE\Wow6432Node\Microsoft\VisualStudio\SxS\VS7
 		default:
 			return ERR_UNAVAILABLE;
 	}
@@ -241,10 +221,8 @@ GodotSharpEditor::GodotSharpEditor(EditorNode *p_editor) {
 
 	// External editor settings
 	EditorSettings *ed_settings = EditorSettings::get_singleton();
-	if (!ed_settings->has_setting("mono/editor/external_editor")) {
-		ed_settings->set_setting("mono/editor/external_editor", EDITOR_NONE);
-	}
-	ed_settings->add_property_hint(PropertyInfo(Variant::INT, "mono/editor/external_editor", PROPERTY_HINT_ENUM, "None,MonoDevelop,Visual Studio,Visual Studio Code"));
+	EDITOR_DEF("mono/editor/external_editor", EDITOR_NONE);
+	ed_settings->add_property_hint(PropertyInfo(Variant::INT, "mono/editor/external_editor", PROPERTY_HINT_ENUM, "None,MonoDevelop,Visual Studio Code"));
 }
 
 GodotSharpEditor::~GodotSharpEditor() {
@@ -257,4 +235,50 @@ GodotSharpEditor::~GodotSharpEditor() {
 		memdelete(monodevel_instance);
 		monodevel_instance = NULL;
 	}
+}
+
+MonoReloadNode *MonoReloadNode::singleton = NULL;
+
+void MonoReloadNode::_reload_timer_timeout() {
+
+	CSharpLanguage::get_singleton()->reload_assemblies_if_needed(false);
+}
+
+void MonoReloadNode::restart_reload_timer() {
+
+	reload_timer->stop();
+	reload_timer->start();
+}
+
+void MonoReloadNode::_bind_methods() {
+
+	ClassDB::bind_method(D_METHOD("_reload_timer_timeout"), &MonoReloadNode::_reload_timer_timeout);
+}
+
+void MonoReloadNode::_notification(int p_what) {
+	switch (p_what) {
+		case MainLoop::NOTIFICATION_WM_FOCUS_IN: {
+			restart_reload_timer();
+			CSharpLanguage::get_singleton()->reload_assemblies_if_needed(true);
+		} break;
+		default: {
+		} break;
+	};
+}
+
+MonoReloadNode::MonoReloadNode() {
+
+	singleton = this;
+
+	reload_timer = memnew(Timer);
+	add_child(reload_timer);
+	reload_timer->set_one_shot(false);
+	reload_timer->set_wait_time(EDITOR_DEF("mono/assembly_watch_interval_sec", 0.5));
+	reload_timer->connect("timeout", this, "_reload_timer_timeout");
+	reload_timer->start();
+}
+
+MonoReloadNode::~MonoReloadNode() {
+
+	singleton = NULL;
 }

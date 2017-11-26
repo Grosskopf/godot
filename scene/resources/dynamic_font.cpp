@@ -125,7 +125,7 @@ Error DynamicFontAtSize::_load() {
 			_fontdata[font->font_path] = Vector<uint8_t>();
 			Vector<uint8_t> &fontdata = _fontdata[font->font_path];
 			fontdata.resize(len);
-			f->get_buffer(fontdata.ptr(), len);
+			f->get_buffer(fontdata.ptrw(), len);
 			font->set_font_ptr(fontdata.ptr(), len);
 			f->close();
 		}
@@ -571,7 +571,7 @@ void DynamicFontAtSize::_update_char(CharType p_char) {
 						wr[ofs + 0] = 255; //grayscale as 1
 						wr[ofs + 1] = slot->bitmap.buffer[i * slot->bitmap.pitch + j];
 						break;
-						// TODO: FT_PIXEL_MODE_LCD, FT_PIXEL_MODE_BGRA
+					// TODO: FT_PIXEL_MODE_LCD, FT_PIXEL_MODE_BGRA
 					default:
 						ERR_EXPLAIN("Font uses unsupported pixel format: " + itos(slot->bitmap.pixel_mode));
 						ERR_FAIL();

@@ -51,7 +51,8 @@ public:
 		IMPORT_ANIMATION_KEEP_VALUE_TRACKS = 32,
 		IMPORT_GENERATE_TANGENT_ARRAYS = 256,
 		IMPORT_FAIL_ON_MISSING_DEPENDENCIES = 512,
-		IMPORT_MATERIALS_IN_INSTANCES = 1024
+		IMPORT_MATERIALS_IN_INSTANCES = 1024,
+		IMPORT_USE_COMPRESSION = 2048
 
 	};
 
@@ -99,6 +100,12 @@ class ResourceImporterScene : public ResourceImporter {
 		PRESET_MAX
 	};
 
+	enum LightBakeMode {
+		LIGHT_BAKE_DISABLED,
+		LIGHT_BAKE_ENABLE,
+		//LIGHT_BAKE_LIGHTMAPS
+	};
+
 	void _replace_owner(Node *p_node, Node *p_scene, Node *p_new_owner);
 
 public:
@@ -123,7 +130,7 @@ public:
 
 	void _make_external_resources(Node *p_node, const String &p_base_path, bool p_make_animations, bool p_make_materials, bool p_keep_materials, bool p_make_meshes, Map<Ref<Animation>, Ref<Animation> > &p_animations, Map<Ref<Material>, Ref<Material> > &p_materials, Map<Ref<ArrayMesh>, Ref<ArrayMesh> > &p_meshes);
 
-	Node *_fix_node(Node *p_node, Node *p_root, Map<Ref<ArrayMesh>, Ref<Shape> > &collision_map);
+	Node *_fix_node(Node *p_node, Node *p_root, Map<Ref<ArrayMesh>, Ref<Shape> > &collision_map, LightBakeMode p_light_bake_mode);
 
 	void _create_clips(Node *scene, const Array &p_clips, bool p_bake_all);
 	void _filter_anim_tracks(Ref<Animation> anim, Set<String> &keep);

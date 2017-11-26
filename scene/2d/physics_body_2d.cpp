@@ -133,8 +133,9 @@ bool PhysicsBody2D::get_collision_layer_bit(int p_bit) const {
 }
 
 PhysicsBody2D::PhysicsBody2D(Physics2DServer::BodyMode p_mode)
-	: CollisionObject2D(Physics2DServer::get_singleton()->body_create(p_mode), false) {
+	: CollisionObject2D(Physics2DServer::get_singleton()->body_create(), false) {
 
+	Physics2DServer::get_singleton()->body_set_mode(get_rid(), p_mode);
 	collision_layer = 1;
 	collision_mask = 1;
 	set_pickable(false);
@@ -1027,7 +1028,10 @@ Vector2 KinematicBody2D::move_and_slide(const Vector2 &p_linear_velocity, const 
 					on_floor = true;
 					floor_velocity = collision.collider_vel;
 
-					if (collision.travel.length() < 1 && ABS((lv.x - floor_velocity.x)) < p_slope_stop_min_velocity) {
+					Vector2 rel_v = lv - floor_velocity;
+					Vector2 hv = rel_v - p_floor_direction * p_floor_direction.dot(rel_v);
+
+					if (collision.travel.length() < 1 && hv.length() < p_slope_stop_min_velocity) {
 						Transform2D gt = get_global_transform();
 						gt.elements[2] -= collision.travel;
 						set_global_transform(gt);

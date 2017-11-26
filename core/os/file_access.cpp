@@ -152,7 +152,7 @@ String FileAccess::fix_path(const String &p_path) const {
 
 			if (r_path.begins_with("user://")) {
 
-				String data_dir = OS::get_singleton()->get_data_dir();
+				String data_dir = OS::get_singleton()->get_user_data_dir();
 				if (data_dir != "") {
 
 					return r_path.replace("user:/", data_dir);
@@ -481,7 +481,7 @@ Vector<uint8_t> FileAccess::get_file_as_array(const String &p_path) {
 	ERR_FAIL_COND_V(!f, Vector<uint8_t>());
 	Vector<uint8_t> data;
 	data.resize(f->get_len());
-	f->get_buffer(data.ptr(), data.size());
+	f->get_buffer(data.ptrw(), data.size());
 	memdelete(f);
 	return data;
 }

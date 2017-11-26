@@ -31,9 +31,9 @@
 #include "scene/resources/surface_tool.h"
 #include "servers/visual_server.h"
 
-Rect3 Particles::get_aabb() const {
+AABB Particles::get_aabb() const {
 
-	return Rect3();
+	return AABB();
 }
 PoolVector<Face3> Particles::get_faces(uint32_t p_usage_flags) const {
 
@@ -82,7 +82,7 @@ void Particles::set_randomness_ratio(float p_ratio) {
 	randomness_ratio = p_ratio;
 	VS::get_singleton()->particles_set_randomness_ratio(particles, randomness_ratio);
 }
-void Particles::set_visibility_aabb(const Rect3 &p_aabb) {
+void Particles::set_visibility_aabb(const AABB &p_aabb) {
 
 	visibility_aabb = p_aabb;
 	VS::get_singleton()->particles_set_custom_aabb(particles, visibility_aabb);
@@ -140,7 +140,7 @@ float Particles::get_randomness_ratio() const {
 
 	return randomness_ratio;
 }
-Rect3 Particles::get_visibility_aabb() const {
+AABB Particles::get_visibility_aabb() const {
 
 	return visibility_aabb;
 }
@@ -252,7 +252,7 @@ void Particles::restart() {
 	VisualServer::get_singleton()->particles_restart(particles);
 }
 
-Rect3 Particles::capture_aabb() const {
+AABB Particles::capture_aabb() const {
 
 	return VS::get_singleton()->particles_get_current_aabb(particles);
 }
@@ -335,7 +335,7 @@ void Particles::_bind_methods() {
 	ADD_PROPERTY(PropertyInfo(Variant::INT, "fixed_fps", PROPERTY_HINT_RANGE, "0,1000,1"), "set_fixed_fps", "get_fixed_fps");
 	ADD_PROPERTY(PropertyInfo(Variant::BOOL, "fract_delta"), "set_fractional_delta", "get_fractional_delta");
 	ADD_GROUP("Drawing", "");
-	ADD_PROPERTY(PropertyInfo(Variant::RECT3, "visibility_aabb"), "set_visibility_aabb", "get_visibility_aabb");
+	ADD_PROPERTY(PropertyInfo(Variant::AABB, "visibility_aabb"), "set_visibility_aabb", "get_visibility_aabb");
 	ADD_PROPERTY(PropertyInfo(Variant::BOOL, "local_coords"), "set_use_local_coordinates", "get_use_local_coordinates");
 	ADD_PROPERTY(PropertyInfo(Variant::INT, "draw_order", PROPERTY_HINT_ENUM, "Index,Lifetime,View Depth"), "set_draw_order", "get_draw_order");
 	ADD_GROUP("Process Material", "");
@@ -367,7 +367,7 @@ Particles::Particles() {
 	set_pre_process_time(0);
 	set_explosiveness_ratio(0);
 	set_randomness_ratio(0);
-	set_visibility_aabb(Rect3(Vector3(-4, -4, -4), Vector3(8, 8, 8)));
+	set_visibility_aabb(AABB(Vector3(-4, -4, -4), Vector3(8, 8, 8)));
 	set_use_local_coordinates(true);
 	set_draw_passes(1);
 	set_draw_order(DRAW_ORDER_INDEX);
@@ -642,7 +642,7 @@ void ParticlesMaterial::_update_shader() {
 
 		code += "		float angle1 = (rand_from_seed(alt_seed)*2.0-1.0)*spread/180.0*3.1416;\n";
 		code += "		vec3 rot = vec3( cos(angle1), sin(angle1),0.0 );\n";
-		code += "		VELOCITY = (rot*initial_linear_velocity+rot*initial_linear_velocity_random*rand_from_seed(alt_seed));\n";
+		code += "		VELOCITY = rot*initial_linear_velocity*mix(1.0, rand_from_seed(alt_seed), initial_linear_velocity_random);\n";
 
 	} else {
 		//initiate velocity spread in 3D
@@ -650,7 +650,7 @@ void ParticlesMaterial::_update_shader() {
 		code += "		float angle2 = rand_from_seed(alt_seed)*20.0*3.1416; // make it more random like\n";
 		code += "		vec3 rot_xz = vec3( sin(angle1), 0.0, cos(angle1) );\n";
 		code += "		vec3 rot = vec3( cos(angle2)*rot_xz.x,sin(angle2)*rot_xz.x, rot_xz.z);\n";
-		code += "		VELOCITY = (rot*initial_linear_velocity+rot*initial_linear_velocity_random*rand_from_seed(alt_seed));\n";
+		code += "		VELOCITY = rot*initial_linear_velocity*mix(1.0, rand_from_seed(alt_seed), initial_linear_velocity_random);\n";
 	}
 
 	code += "		float base_angle = (initial_angle+tex_angle)*mix(1.0,angle_rand,initial_angle_random);\n";
@@ -761,11 +761,11 @@ void ParticlesMaterial::_update_shader() {
 	code += "		force += length(diff) > 0.0 ? normalize(diff) * (radial_accel+tex_radial_accel)*mix(1.0,rand_from_seed(alt_seed),radial_accel_random) : vec3(0.0);\n";
 	code += "		//apply tangential acceleration;\n";
 	if (flags[FLAG_DISABLE_Z]) {
-		code += "		force += length(diff.yx) > 0.0 ? vec3(normalize(diff.yx * vec2(-1.0,1.0)),0.0) * ((tangent_accel+tex_tangent_accel)*mix(1.0,rand_from_seed(alt_seed),radial_accel_random)) : vec3(0.0);\n";
+		code += "		force += length(diff.yx) > 0.0 ? vec3(normalize(diff.yx * vec2(-1.0,1.0)),0.0) * ((tangent_accel+tex_tangent_accel)*mix(1.0,rand_from_seed(alt_seed),tangent_accel_random)) : vec3(0.0);\n";
 
 	} else {
 		code += "		vec3 crossDiff = cross(normalize(diff),normalize(gravity));\n";
-		code += "		force += length(crossDiff) > 0.0 ? normalize(crossDiff) * ((tangent_accel+tex_tangent_accel)*mix(1.0,rand_from_seed(alt_seed),radial_accel_random)) : vec3(0.0);\n";
+		code += "		force += length(crossDiff) > 0.0 ? normalize(crossDiff) * ((tangent_accel+tex_tangent_accel)*mix(1.0,rand_from_seed(alt_seed),tangent_accel_random)) : vec3(0.0);\n";
 	}
 	code += "		//apply attractor forces\n";
 	code += "		VELOCITY += force * DELTA;\n";
@@ -836,9 +836,15 @@ void ParticlesMaterial::_update_shader() {
 
 	if (flags[FLAG_DISABLE_Z]) {
 
-		code += "	TRANSFORM[0] = vec4(cos(CUSTOM.x),-sin(CUSTOM.x),0.0,0.0);\n";
-		code += "	TRANSFORM[1] = vec4(sin(CUSTOM.x),cos(CUSTOM.x),0.0,0.0);\n";
-		code += "	TRANSFORM[2] = vec4(0.0,0.0,1.0,0.0);\n";
+		if (flags[FLAG_ALIGN_Y_TO_VELOCITY]) {
+			code += "	if (length(VELOCITY) > 0.0) { TRANSFORM[1].xyz = normalize(VELOCITY); } else { TRANSFORM[1].xyz = normalize(TRANSFORM[1].xyz); }\n";
+			code += "	TRANSFORM[0].xyz = normalize(cross(TRANSFORM[1].xyz,TRANSFORM[2].xyz));\n";
+			code += "	TRANSFORM[2] = vec4(0.0,0.0,1.0,0.0);\n";
+		} else {
+			code += "	TRANSFORM[0] = vec4(cos(CUSTOM.x),-sin(CUSTOM.x),0.0,0.0);\n";
+			code += "	TRANSFORM[1] = vec4(sin(CUSTOM.x),cos(CUSTOM.x),0.0,0.0);\n";
+			code += "	TRANSFORM[2] = vec4(0.0,0.0,1.0,0.0);\n";
+		}
 
 	} else {
 		//orient particle Y towards velocity

@@ -35,7 +35,7 @@
 #include "project_settings.h"
 #include "script_language.h"
 
-RID Physics2DServerSW::shape_create(ShapeType p_shape) {
+RID Physics2DServerSW::_shape_create(ShapeType p_shape) {
 
 	Shape2DSW *shape = NULL;
 	switch (p_shape) {
@@ -83,7 +83,42 @@ RID Physics2DServerSW::shape_create(ShapeType p_shape) {
 	shape->set_self(id);
 
 	return id;
-};
+}
+
+RID Physics2DServerSW::line_shape_create() {
+
+	return _shape_create(SHAPE_LINE);
+}
+
+RID Physics2DServerSW::ray_shape_create() {
+
+	return _shape_create(SHAPE_RAY);
+}
+RID Physics2DServerSW::segment_shape_create() {
+
+	return _shape_create(SHAPE_SEGMENT);
+}
+RID Physics2DServerSW::circle_shape_create() {
+
+	return _shape_create(SHAPE_CIRCLE);
+}
+RID Physics2DServerSW::rectangle_shape_create() {
+
+	return _shape_create(SHAPE_RECTANGLE);
+}
+RID Physics2DServerSW::capsule_shape_create() {
+
+	return _shape_create(SHAPE_CAPSULE);
+}
+
+RID Physics2DServerSW::convex_polygon_shape_create() {
+
+	return _shape_create(SHAPE_CONVEX_POLYGON);
+}
+RID Physics2DServerSW::concave_polygon_shape_create() {
+
+	return _shape_create(SHAPE_CONCAVE_POLYGON);
+}
 
 void Physics2DServerSW::shape_set_data(RID p_shape, const Variant &p_data) {
 
@@ -299,14 +334,7 @@ void Physics2DServerSW::area_set_space(RID p_area, RID p_space) {
 	if (area->get_space() == space)
 		return; //pointless
 
-	for (Set<Constraint2DSW *>::Element *E = area->get_constraints().front(); E; E = E->next()) {
-		RID self = E->get()->get_self();
-		if (!self.is_valid())
-			continue;
-		free(self);
-	}
 	area->clear_constraints();
-
 	area->set_space(space);
 };
 
@@ -526,17 +554,13 @@ void Physics2DServerSW::area_set_area_monitor_callback(RID p_area, Object *p_rec
 
 /* BODY API */
 
-RID Physics2DServerSW::body_create(BodyMode p_mode, bool p_init_sleeping) {
+RID Physics2DServerSW::body_create() {
 
 	Body2DSW *body = memnew(Body2DSW);
-	if (p_mode != BODY_MODE_RIGID)
-		body->set_mode(p_mode);
-	if (p_init_sleeping)
-		body->set_state(BODY_STATE_SLEEPING, p_init_sleeping);
 	RID rid = body_owner.make_rid(body);
 	body->set_self(rid);
 	return rid;
-};
+}
 
 void Physics2DServerSW::body_set_space(RID p_body, RID p_space) {
 
@@ -551,14 +575,7 @@ void Physics2DServerSW::body_set_space(RID p_body, RID p_space) {
 	if (body->get_space() == space)
 		return; //pointless
 
-	for (Map<Constraint2DSW *, int>::Element *E = body->get_constraint_map().front(); E; E = E->next()) {
-		RID self = E->key()->get_self();
-		if (!self.is_valid())
-			continue;
-		free(self);
-	}
 	body->clear_constraint_map();
-
 	body->set_space(space);
 };
 

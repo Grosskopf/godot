@@ -118,8 +118,10 @@ public:
 	bool begins_with(const String &p_string) const;
 	bool begins_with(const char *p_string) const;
 	bool ends_with(const String &p_string) const;
+	bool is_enclosed_in(const String &p_string) const;
 	bool is_subsequence_of(const String &p_string) const;
 	bool is_subsequence_ofi(const String &p_string) const;
+	bool is_quoted() const;
 	Vector<String> bigrams() const;
 	float similarity(const String &p_string) const;
 	String format(const Variant &values, String placeholder = "{_}") const;
@@ -132,6 +134,8 @@ public:
 	String lpad(int min_length, const String &character = " ") const;
 	String rpad(int min_length, const String &character = " ") const;
 	String sprintf(const Array &values, bool *error) const;
+	String quote(String quotechar = "\"") const;
+	String unquote() const;
 	static String num(double p_num, int p_decimals = -1);
 	static String num_scientific(double p_num);
 	static String num_real(double p_num);
@@ -165,6 +169,8 @@ public:
 	Vector<int> split_ints(const String &p_splitter, bool p_allow_empty = true) const;
 	Vector<int> split_ints_mk(const Vector<String> &p_splitters, bool p_allow_empty = true) const;
 
+	String join(Vector<String> parts);
+
 	static CharType char_uppercase(CharType p_char);
 	static CharType char_lowercase(CharType p_char);
 	String to_upper() const;
@@ -172,6 +178,7 @@ public:
 
 	String left(int p_pos) const;
 	String right(int p_pos) const;
+	String dedent() const;
 	String strip_edges(bool left = true, bool right = true) const;
 	String strip_escapes() const;
 	String get_extension() const;
