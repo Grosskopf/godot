@@ -13,22 +13,21 @@ def get_name():
 
 def can_build():
 
-    return ("EMSCRIPTEN_ROOT" in os.environ)
+    return ("EMSCRIPTEN_ROOT" in os.environ or "EMSCRIPTEN" in os.environ)
 
 
 def get_opts():
-
+    from SCons.Variables import BoolVariable
     return [
-        ['wasm', 'Compile to WebAssembly', 'no'],
-        ['javascript_eval', 'Enable JavaScript eval interface', 'yes'],
+        BoolVariable('javascript_eval', 'Enable JavaScript eval interface', True),
     ]
 
 
 def get_flags():
 
     return [
-        ('tools', 'no'),
-        ('module_theora_enabled', 'no'),
+        ('tools', False),
+        ('module_theora_enabled', False),
     ]
 
 
@@ -66,7 +65,10 @@ def configure(env):
     ## Compiler configuration
 
     env['ENV'] = os.environ
-    env.PrependENVPath('PATH', os.environ['EMSCRIPTEN_ROOT'])
+    if ("EMSCRIPTEN_ROOT" in os.environ):
+        env.PrependENVPath('PATH', os.environ['EMSCRIPTEN_ROOT'])
+    elif ("EMSCRIPTEN" in os.environ):
+        env.PrependENVPath('PATH', os.environ['EMSCRIPTEN'])
     env['CC']      = 'emcc'
     env['CXX']     = 'em++'
     env['LINK']    = 'emcc'
@@ -95,26 +97,19 @@ def configure(env):
     # These flags help keep the file size down
     env.Append(CPPFLAGS=["-fno-exceptions", '-DNO_SAFE_CAST', '-fno-rtti'])
 
-    if env['javascript_eval'] == 'yes':
+    if env['javascript_eval']:
         env.Append(CPPFLAGS=['-DJAVASCRIPT_EVAL_ENABLED'])
 
     ## Link flags
 
-    env.Append(LINKFLAGS=['-s', 'EXTRA_EXPORTED_RUNTIME_METHODS="[\'FS\']"'])
+    env.Append(LINKFLAGS=['-s', 'BINARYEN=1'])
+    env.Append(LINKFLAGS=['-s', 'ALLOW_MEMORY_GROWTH=1'])
     env.Append(LINKFLAGS=['-s', 'USE_WEBGL2=1'])
+    env.Append(LINKFLAGS=['-s', 'EXTRA_EXPORTED_RUNTIME_METHODS="[\'FS\']"'])
 
-    if (env['wasm'] == 'yes'):
-        env.Append(LINKFLAGS=['-s', 'BINARYEN=1'])
-        # In contrast to asm.js, enabling memory growth on WebAssembly has no
-        # major performance impact, and causes only a negligible increase in
-        # memory size.
-        env.Append(LINKFLAGS=['-s', 'ALLOW_MEMORY_GROWTH=1'])
-        env.extra_suffix = '.webassembly' + env.extra_suffix
-    else:
-        env.Append(LINKFLAGS=['-s', 'ASM_JS=1'])
-        env.Append(LINKFLAGS=['--separate-asm'])
-        env.Append(LINKFLAGS=['--memory-init-file', '1'])
+    env.Append(LINKFLAGS=['-s', 'INVOKE_RUN=0'])
+    env.Append(LINKFLAGS=['-s', 'NO_EXIT_RUNTIME=1'])
 
     # TODO: Move that to opus module's config
-    if("module_opus_enabled" in env and env["module_opus_enabled"] != "no"):
+    if 'module_opus_enabled' in env and env['module_opus_enabled']:
         env.opus_fixed_point = "yes"

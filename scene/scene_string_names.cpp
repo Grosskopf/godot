@@ -87,7 +87,7 @@ SceneStringNames::SceneStringNames() {
 	_get_gizmo_geometry = StaticCString::create("_get_gizmo_geometry");
 	_can_gizmo_scale = StaticCString::create("_can_gizmo_scale");
 
-	_fixed_process = StaticCString::create("_fixed_process");
+	_physics_process = StaticCString::create("_physics_process");
 	_process = StaticCString::create("_process");
 
 	_enter_tree = StaticCString::create("_enter_tree");
@@ -143,7 +143,7 @@ SceneStringNames::SceneStringNames() {
 	v_offset = StaticCString::create("v_offset");
 
 	transform_pos = StaticCString::create("position");
-	transform_rot = StaticCString::create("rotation_deg");
+	transform_rot = StaticCString::create("rotation_degrees");
 	transform_scale = StaticCString::create("scale");
 
 	_update_remote = StaticCString::create("_update_remote");

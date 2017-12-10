@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="UTF-8" ?>
-<class name="UndoRedo" inherits="Object" category="Core" version="3.0.alpha.custom_build">
+<class name="UndoRedo" inherits="Object" category="Core" version="3.0-beta">
 	<brief_description>
 		Helper to manage UndoRedo in the editor or custom tools.
 	</brief_description>
@@ -108,6 +108,12 @@
 				Get the name of the current action.
 			</description>
 		</method>
+		<method name="get_max_steps" qualifiers="const">
+			<return type="int">
+			</return>
+			<description>
+			</description>
+		</method>
 		<method name="get_version" qualifiers="const">
 			<return type="int">
 			</return>
@@ -116,13 +122,33 @@
 				This is useful mostly to check if something changed from a saved version.
 			</description>
 		</method>
+		<method name="redo">
+			<return type="void">
+			</return>
+			<description>
+			</description>
+		</method>
+		<method name="set_max_steps">
+			<return type="void">
+			</return>
+			<argument index="0" name="max_steps" type="int">
+			</argument>
+			<description>
+			</description>
+		</method>
+		<method name="undo">
+			<return type="void">
+			</return>
+			<description>
+			</description>
+		</method>
 	</methods>
 	<constants>
-		<constant name="MERGE_DISABLE" value="0">
+		<constant name="MERGE_DISABLE" value="0" enum="MergeMode">
 		</constant>
-		<constant name="MERGE_ENDS" value="1">
+		<constant name="MERGE_ENDS" value="1" enum="MergeMode">
 		</constant>
-		<constant name="MERGE_ALL" value="2">
+		<constant name="MERGE_ALL" value="2" enum="MergeMode">
 		</constant>
 	</constants>
 </class>

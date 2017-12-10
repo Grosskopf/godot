@@ -38,12 +38,12 @@ void ResourcePreloaderEditor::_gui_input(Ref<InputEvent> p_event) {
 
 void ResourcePreloaderEditor::_notification(int p_what) {
 
-	if (p_what == NOTIFICATION_FIXED_PROCESS) {
+	if (p_what == NOTIFICATION_PHYSICS_PROCESS) {
 	}
 
 	if (p_what == NOTIFICATION_ENTER_TREE) {
 		load->set_icon(get_icon("Folder", "EditorIcons"));
-		_delete->set_icon(get_icon("Del", "EditorIcons"));
+		_delete->set_icon(get_icon("Remove", "EditorIcons"));
 	}
 
 	if (p_what == NOTIFICATION_READY) {
@@ -248,13 +248,13 @@ void ResourcePreloaderEditor::edit(ResourcePreloader *p_preloader) {
 	} else {
 
 		hide();
-		set_fixed_process(false);
+		set_physics_process(false);
 	}
 }
 
 Variant ResourcePreloaderEditor::get_drag_data_fw(const Point2 &p_point, Control *p_from) {
 
-	TreeItem *ti = tree->get_item_at_pos(p_point);
+	TreeItem *ti = tree->get_item_at_position(p_point);
 	if (!ti)
 		return Variant();
 

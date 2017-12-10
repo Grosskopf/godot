@@ -56,6 +56,7 @@ public:
 		MENU_CLEAR,
 		MENU_SELECT_ALL,
 		MENU_UNDO,
+		MENU_REDO,
 		MENU_MAX
 
 	};
@@ -73,6 +74,7 @@ private:
 	String ime_text;
 	Point2 ime_selection;
 
+	bool context_menu_enabled;
 	PopupMenu *menu;
 
 	int cursor_pos;
@@ -92,10 +94,22 @@ private:
 		bool drag_attempt;
 	} selection;
 
+	struct TextOperation {
+		int cursor_pos;
+		String text;
+	};
+	List<TextOperation> undo_stack;
+	List<TextOperation>::Element *undo_stack_pos;
+
+	void _clear_undo_stack();
+	void _clear_redo();
+	void _create_undo_state();
+
 	Timer *caret_blink_timer;
 
 	static void _ime_text_callback(void *p_self, String p_text, Point2 p_selection);
 	void _text_changed();
+	void _emit_text_change();
 	bool expand_to_text_length;
 
 	bool caret_blink_enabled;
@@ -137,6 +151,8 @@ public:
 	virtual void drop_data(const Point2 &p_point, const Variant &p_data);
 
 	void menu_option(int p_option);
+	void set_context_menu_enabled(bool p_enable);
+	bool is_context_menu_enabled();
 	PopupMenu *get_menu() const;
 
 	void select_all();
@@ -149,8 +165,8 @@ public:
 	String get_placeholder() const;
 	void set_placeholder_alpha(float p_alpha);
 	float get_placeholder_alpha() const;
-	void set_cursor_pos(int p_pos);
-	int get_cursor_pos() const;
+	void set_cursor_position(int p_pos);
+	int get_cursor_position() const;
 	void set_max_length(int p_max_length);
 	int get_max_length() const;
 	void append_at_cursor(String p_text);
@@ -166,6 +182,7 @@ public:
 	void cut_text();
 	void paste_text();
 	void undo();
+	void redo();
 
 	void set_editable(bool p_editable);
 	bool is_editable() const;

@@ -44,7 +44,7 @@ void GDNativeLibraryEditor::_find_gdnative_singletons(EditorFileSystemDirectory 
 		}
 
 		Ref<GDNativeLibrary> lib = ResourceLoader::load(p_dir->get_file_path(i));
-		if (lib.is_valid() && lib->is_singleton_gdnative()) {
+		if (lib.is_valid() && lib->is_singleton()) {
 			String path = p_dir->get_file_path(i);
 			TreeItem *ti = libraries->create_item(libraries->get_root());
 			ti->set_text(0, path.get_file());
@@ -72,7 +72,7 @@ void GDNativeLibraryEditor::_update_libraries() {
 	libraries->create_item(); //rppt
 
 	Vector<String> enabled_paths;
-	if (ProjectSettings::get_singleton()->has("gdnative/singletons")) {
+	if (ProjectSettings::get_singleton()->has_setting("gdnative/singletons")) {
 		enabled_paths = ProjectSettings::get_singleton()->get("gdnative/singletons");
 	}
 	Set<String> enabled_list;
@@ -100,7 +100,7 @@ void GDNativeLibraryEditor::_item_edited() {
 	String path = item->get_metadata(0);
 
 	Vector<String> enabled_paths;
-	if (ProjectSettings::get_singleton()->has("gdnative/singletons")) {
+	if (ProjectSettings::get_singleton()->has_setting("gdnative/singletons")) {
 		enabled_paths = ProjectSettings::get_singleton()->get("gdnative/singletons");
 	}
 

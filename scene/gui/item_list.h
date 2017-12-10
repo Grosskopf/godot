@@ -156,8 +156,10 @@ public:
 
 	void select(int p_idx, bool p_single = true);
 	void unselect(int p_idx);
+	void unselect_all();
 	bool is_selected(int p_idx) const;
 	Vector<int> get_selected_items();
+	bool is_anything_selected();
 
 	void set_current(int p_current);
 	int get_current() const;
@@ -199,7 +201,7 @@ public:
 	int find_metadata(const Variant &p_metadata) const;
 
 	virtual String get_tooltip(const Point2 &p_pos) const;
-	int get_item_at_pos(const Point2 &p_pos, bool p_exact = false) const;
+	int get_item_at_position(const Point2 &p_pos, bool p_exact = false) const;
 	bool is_pos_at_end_of_items(const Point2 &p_pos) const;
 
 	void set_icon_scale(real_t p_scale);

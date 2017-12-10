@@ -30,6 +30,7 @@
 #include "http_client.h"
 #include "io/stream_peer_ssl.h"
 
+#ifndef JAVASCRIPT_ENABLED
 Error HTTPClient::connect_to_host(const String &p_host, int p_port, bool p_ssl, bool p_verify_host) {
 
 	close();
@@ -189,16 +190,6 @@ Error HTTPClient::request(Method p_method, const String &p_url, const Vector<Str
 	return OK;
 }
 
-Error HTTPClient::send_body_text(const String &p_body) {
-
-	return OK;
-}
-
-Error HTTPClient::send_body_data(const PoolByteArray &p_body) {
-
-	return OK;
-}
-
 bool HTTPClient::has_response() const {
 
 	return response_headers.size() != 0;
@@ -297,7 +288,7 @@ Error HTTPClient::poll() {
 				case StreamPeerTCP::STATUS_CONNECTED: {
 					if (ssl) {
 						Ref<StreamPeerSSL> ssl = StreamPeerSSL::create();
-						Error err = ssl->connect_to_stream(tcp_connection, true, ssl_verify_host ? conn_host : String());
+						Error err = ssl->connect_to_stream(tcp_connection, ssl_verify_host, ssl_verify_host ? conn_host : String());
 						if (err != OK) {
 							close();
 							status = STATUS_SSL_HANDSHAKE_ERROR;
@@ -413,38 +404,6 @@ Error HTTPClient::poll() {
 	}
 
 	return OK;
-}
-
-Dictionary HTTPClient::_get_response_headers_as_dictionary() {
-
-	List<String> rh;
-	get_response_headers(&rh);
-	Dictionary ret;
-	for (const List<String>::Element *E = rh.front(); E; E = E->next()) {
-		String s = E->get();
-		int sp = s.find(":");
-		if (sp == -1)
-			continue;
-		String key = s.substr(0, sp).strip_edges();
-		String value = s.substr(sp + 1, s.length()).strip_edges();
-		ret[key] = value;
-	}
-
-	return ret;
-}
-
-PoolStringArray HTTPClient::_get_response_headers() {
-
-	List<String> rh;
-	get_response_headers(&rh);
-	PoolStringArray ret;
-	ret.resize(rh.size());
-	int idx = 0;
-	for (const List<String>::Element *E = rh.front(); E; E = E->next()) {
-		ret.set(idx++, E->get());
-	}
-
-	return ret;
 }
 
 int HTTPClient::get_response_body_length() const {
@@ -622,6 +581,74 @@ Error HTTPClient::_get_http_data(uint8_t *p_buffer, int p_bytes, int &r_received
 	}
 }
 
+void HTTPClient::set_read_chunk_size(int p_size) {
+	ERR_FAIL_COND(p_size < 256 || p_size > (1 << 24));
+	read_chunk_size = p_size;
+}
+
+HTTPClient::HTTPClient() {
+
+	tcp_connection = StreamPeerTCP::create_ref();
+	resolving = IP::RESOLVER_INVALID_ID;
+	status = STATUS_DISCONNECTED;
+	conn_port = 80;
+	body_size = 0;
+	chunked = false;
+	body_left = 0;
+	chunk_left = 0;
+	response_num = 0;
+	ssl = false;
+	blocking = false;
+	read_chunk_size = 4096;
+}
+
+HTTPClient::~HTTPClient() {
+}
+
+#endif // #ifndef JAVASCRIPT_ENABLED
+
+String HTTPClient::query_string_from_dict(const Dictionary &p_dict) {
+	String query = "";
+	Array keys = p_dict.keys();
+	for (int i = 0; i < keys.size(); ++i) {
+		query += "&" + String(keys[i]).http_escape() + "=" + String(p_dict[keys[i]]).http_escape();
+	}
+	query.erase(0, 1);
+	return query;
+}
+
+Dictionary HTTPClient::_get_response_headers_as_dictionary() {
+
+	List<String> rh;
+	get_response_headers(&rh);
+	Dictionary ret;
+	for (const List<String>::Element *E = rh.front(); E; E = E->next()) {
+		String s = E->get();
+		int sp = s.find(":");
+		if (sp == -1)
+			continue;
+		String key = s.substr(0, sp).strip_edges();
+		String value = s.substr(sp + 1, s.length()).strip_edges();
+		ret[key] = value;
+	}
+
+	return ret;
+}
+
+PoolStringArray HTTPClient::_get_response_headers() {
+
+	List<String> rh;
+	get_response_headers(&rh);
+	PoolStringArray ret;
+	ret.resize(rh.size());
+	int idx = 0;
+	for (const List<String>::Element *E = rh.front(); E; E = E->next()) {
+		ret.set(idx++, E->get());
+	}
+
+	return ret;
+}
+
 void HTTPClient::_bind_methods() {
 
 	ClassDB::bind_method(D_METHOD("connect_to_host", "host", "port", "use_ssl", "verify_host"), &HTTPClient::connect_to_host, DEFVAL(false), DEFVAL(true));
@@ -629,8 +656,6 @@ void HTTPClient::_bind_methods() {
 	ClassDB::bind_method(D_METHOD("get_connection"), &HTTPClient::get_connection);
 	ClassDB::bind_method(D_METHOD("request_raw", "method", "url", "headers", "body"), &HTTPClient::request_raw);
 	ClassDB::bind_method(D_METHOD("request", "method", "url", "headers", "body"), &HTTPClient::request, DEFVAL(String()));
-	ClassDB::bind_method(D_METHOD("send_body_text", "body"), &HTTPClient::send_body_text);
-	ClassDB::bind_method(D_METHOD("send_body_data", "body"), &HTTPClient::send_body_data);
 	ClassDB::bind_method(D_METHOD("close"), &HTTPClient::close);
 
 	ClassDB::bind_method(D_METHOD("has_response"), &HTTPClient::has_response);
@@ -728,38 +753,4 @@ void HTTPClient::_bind_methods() {
 	BIND_ENUM_CONSTANT(RESPONSE_HTTP_VERSION_NOT_SUPPORTED);
 	BIND_ENUM_CONSTANT(RESPONSE_INSUFFICIENT_STORAGE);
 	BIND_ENUM_CONSTANT(RESPONSE_NOT_EXTENDED);
-}
-
-void HTTPClient::set_read_chunk_size(int p_size) {
-	ERR_FAIL_COND(p_size < 256 || p_size > (1 << 24));
-	read_chunk_size = p_size;
-}
-
-String HTTPClient::query_string_from_dict(const Dictionary &p_dict) {
-	String query = "";
-	Array keys = p_dict.keys();
-	for (int i = 0; i < keys.size(); ++i) {
-		query += "&" + String(keys[i]).http_escape() + "=" + String(p_dict[keys[i]]).http_escape();
-	}
-	query.erase(0, 1);
-	return query;
-}
-
-HTTPClient::HTTPClient() {
-
-	tcp_connection = StreamPeerTCP::create_ref();
-	resolving = IP::RESOLVER_INVALID_ID;
-	status = STATUS_DISCONNECTED;
-	conn_port = 80;
-	body_size = 0;
-	chunked = false;
-	body_left = 0;
-	chunk_left = 0;
-	response_num = 0;
-	ssl = false;
-	blocking = false;
-	read_chunk_size = 4096;
-}
-
-HTTPClient::~HTTPClient() {
 }

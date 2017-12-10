@@ -530,7 +530,7 @@ static void _scale_cubic(const uint8_t *p_src, uint8_t *p_dst, uint32_t p_src_wi
 	int height = p_src_height;
 	double xfac = (double)width / p_dst_width;
 	double yfac = (double)height / p_dst_height;
-	// coordinates of source points and cooefficiens
+	// coordinates of source points and coefficients
 	double ox, oy, dx, dy, k1, k2;
 	int ox1, oy1, ox2, oy2;
 	// destination pixel values
@@ -561,7 +561,7 @@ static void _scale_cubic(const uint8_t *p_src, uint8_t *p_dst, uint32_t p_src_wi
 			}
 
 			for (int n = -1; n < 3; n++) {
-				// get Y cooefficient
+				// get Y coefficient
 				k1 = _bicubic_interp_kernel(dy - (double)n);
 
 				oy2 = oy1 + n;
@@ -571,7 +571,7 @@ static void _scale_cubic(const uint8_t *p_src, uint8_t *p_dst, uint32_t p_src_wi
 					oy2 = ymax;
 
 				for (int m = -1; m < 3; m++) {
-					// get X cooefficient
+					// get X coefficient
 					k2 = k1 * _bicubic_interp_kernel((double)m - dx);
 
 					ox2 = ox1 + m;
@@ -757,22 +757,24 @@ void Image::resize(int p_width, int p_height, Interpolation p_interpolation) {
 
 	_copy_internals_from(dst);
 }
-void Image::crop(int p_width, int p_height) {
 
+void Image::crop_from_point(int p_x, int p_y, int p_width, int p_height) {
 	if (!_can_modify(format)) {
 		ERR_EXPLAIN("Cannot crop in indexed, compressed or custom image formats.");
 		ERR_FAIL();
 	}
+	ERR_FAIL_COND(p_x < 0);
+	ERR_FAIL_COND(p_y < 0);
 	ERR_FAIL_COND(p_width <= 0);
 	ERR_FAIL_COND(p_height <= 0);
-	ERR_FAIL_COND(p_width > MAX_WIDTH);
-	ERR_FAIL_COND(p_height > MAX_HEIGHT);
+	ERR_FAIL_COND(p_x + p_width > MAX_WIDTH);
+	ERR_FAIL_COND(p_y + p_height > MAX_HEIGHT);
 
 	/* to save memory, cropping should be done in-place, however, since this function
 	   will most likely either not be used much, or in critical areas, for now it wont, because
 	   it's a waste of time. */
 
-	if (p_width == width && p_height == height)
+	if (p_width == width && p_height == height && p_x == 0 && p_y == 0)
 		return;
 
 	uint8_t pdata[16]; //largest is 16
@@ -784,9 +786,11 @@ void Image::crop(int p_width, int p_height) {
 		PoolVector<uint8_t>::Read r = data.read();
 		PoolVector<uint8_t>::Write w = dst.data.write();
 
-		for (int y = 0; y < p_height; y++) {
+		int m_h = p_y + p_height;
+		int m_w = p_x + p_width;
+		for (int y = p_y; y < m_h; y++) {
 
-			for (int x = 0; x < p_width; x++) {
+			for (int x = p_x; x < m_w; x++) {
 
 				if ((x >= width || y >= height)) {
 					for (uint32_t i = 0; i < pixel_size; i++)
@@ -795,7 +799,7 @@ void Image::crop(int p_width, int p_height) {
 					_get_pixelb(x, y, pixel_size, r.ptr(), pdata);
 				}
 
-				dst._put_pixelb(x, y, pixel_size, w.ptr(), pdata);
+				dst._put_pixelb(x - p_x, y - p_y, pixel_size, w.ptr(), pdata);
 			}
 		}
 	}
@@ -803,6 +807,11 @@ void Image::crop(int p_width, int p_height) {
 	if (mipmaps > 0)
 		dst.generate_mipmaps();
 	_copy_internals_from(dst);
+}
+
+void Image::crop(int p_width, int p_height) {
+
+	crop_from_point(0, 0, p_width, p_height);
 }
 
 void Image::flip_y() {
@@ -1013,8 +1022,8 @@ void Image::shrink_x2() {
 			copymem(w.ptr(), &r[ofs], new_size);
 		}
 
-		width /= 2;
-		height /= 2;
+		width = MAX(width / 2, 1);
+		height = MAX(height / 2, 1);
 		data = new_img;
 
 	} else {
@@ -1061,7 +1070,6 @@ Error Image::generate_mipmaps() {
 	int size = _get_dst_image_size(width, height, format, mmcount);
 
 	data.resize(size);
-	print_line("to gen mipmaps w " + itos(width) + " h " + itos(height) + " format " + get_format_name(format) + " mipmaps " + itos(mmcount) + " new size is: " + itos(size));
 
 	PoolVector<uint8_t>::Write wp = data.write();
 
@@ -2474,6 +2482,7 @@ void Image::fix_alpha_edges() {
 					if (rp[3] < alpha_threshold)
 						continue;
 
+					closest_dist = dist;
 					closest_color[0] = rp[0];
 					closest_color[1] = rp[1];
 					closest_color[2] = rp[2];

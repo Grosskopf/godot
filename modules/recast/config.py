@@ -1,7 +1,5 @@
-
 def can_build(platform):
-    return True
-
+    return platform != "android"
 
 def configure(env):
     pass

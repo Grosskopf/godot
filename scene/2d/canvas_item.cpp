@@ -178,6 +178,17 @@ CanvasItemMaterial::LightMode CanvasItemMaterial::get_light_mode() const {
 void CanvasItemMaterial::_validate_property(PropertyInfo &property) const {
 }
 
+RID CanvasItemMaterial::get_shader_rid() const {
+
+	ERR_FAIL_COND_V(!shader_map.has(current_key), RID());
+	return shader_map[current_key].shader;
+}
+
+Shader::Mode CanvasItemMaterial::get_shader_mode() const {
+
+	return Shader::MODE_CANVAS_ITEM;
+}
+
 void CanvasItemMaterial::_bind_methods() {
 
 	ClassDB::bind_method(D_METHOD("set_blend_mode", "blend_mode"), &CanvasItemMaterial::set_blend_mode);
@@ -200,8 +211,8 @@ void CanvasItemMaterial::_bind_methods() {
 	BIND_ENUM_CONSTANT(LIGHT_MODE_LIGHT_ONLY);
 }
 
-CanvasItemMaterial::CanvasItemMaterial()
-	: element(this) {
+CanvasItemMaterial::CanvasItemMaterial() :
+		element(this) {
 
 	blend_mode = BLEND_MODE_MIX;
 	light_mode = LIGHT_MODE_NORMAL;
@@ -300,22 +311,7 @@ void CanvasItem::hide() {
 	_change_notify("visible");
 }
 
-Variant CanvasItem::edit_get_state() const {
-
-	return Variant();
-}
-void CanvasItem::edit_set_state(const Variant &p_state) {
-}
-
-void CanvasItem::edit_set_rect(const Rect2 &p_edit_rect) {
-
-	//used by editors, implement at will
-}
-
-void CanvasItem::edit_rotate(float p_rot) {
-}
-
-Size2 CanvasItem::edit_get_minimum_size() const {
+Size2 CanvasItem::_edit_get_minimum_size() const {
 
 	return Size2(-1, -1); //no limit
 }
@@ -627,6 +623,29 @@ void CanvasItem::draw_polyline_colors(const Vector<Point2> &p_points, const Vect
 
 	VisualServer::get_singleton()->canvas_item_add_polyline(canvas_item, p_points, p_colors, p_width, p_antialiased);
 }
+
+void CanvasItem::draw_multiline(const Vector<Point2> &p_points, const Color &p_color, float p_width, bool p_antialiased) {
+
+	if (!drawing) {
+		ERR_EXPLAIN("Drawing is only allowed inside NOTIFICATION_DRAW, _draw() function or 'draw' signal.");
+		ERR_FAIL();
+	}
+
+	Vector<Color> colors;
+	colors.push_back(p_color);
+	VisualServer::get_singleton()->canvas_item_add_multiline(canvas_item, p_points, colors, p_width, p_antialiased);
+}
+
+void CanvasItem::draw_multiline_colors(const Vector<Point2> &p_points, const Vector<Color> &p_colors, float p_width, bool p_antialiased) {
+
+	if (!drawing) {
+		ERR_EXPLAIN("Drawing is only allowed inside NOTIFICATION_DRAW, _draw() function or 'draw' signal.");
+		ERR_FAIL();
+	}
+
+	VisualServer::get_singleton()->canvas_item_add_multiline(canvas_item, p_points, p_colors, p_width, p_antialiased);
+}
+
 void CanvasItem::draw_rect(const Rect2 &p_rect, const Color &p_color, bool p_filled) {
 
 	if (!drawing) {
@@ -902,7 +921,7 @@ Ref<Material> CanvasItem::get_material() const {
 	return material;
 }
 
-Vector2 CanvasItem::make_canvas_pos_local(const Vector2 &screen_point) const {
+Vector2 CanvasItem::make_canvas_position_local(const Vector2 &screen_point) const {
 
 	ERR_FAIL_COND_V(!is_inside_tree(), screen_point);
 
@@ -923,7 +942,8 @@ Vector2 CanvasItem::get_global_mouse_position() const {
 	ERR_FAIL_COND_V(!get_viewport(), Vector2());
 	return get_canvas_transform().affine_inverse().xform(get_viewport()->get_mouse_position());
 }
-Vector2 CanvasItem::get_local_mouse_pos() const {
+
+Vector2 CanvasItem::get_local_mouse_position() const {
 
 	ERR_FAIL_COND_V(!get_viewport(), Vector2());
 
@@ -934,15 +954,22 @@ void CanvasItem::_bind_methods() {
 
 	ClassDB::bind_method(D_METHOD("_toplevel_raise_self"), &CanvasItem::_toplevel_raise_self);
 	ClassDB::bind_method(D_METHOD("_update_callback"), &CanvasItem::_update_callback);
+	ClassDB::bind_method(D_METHOD("_edit_set_state", "state"), &CanvasItem::_edit_set_state);
+	ClassDB::bind_method(D_METHOD("_edit_get_state"), &CanvasItem::_edit_get_state);
 
-	ClassDB::bind_method(D_METHOD("edit_set_state", "state"), &CanvasItem::edit_set_state);
-	ClassDB::bind_method(D_METHOD("edit_get_state"), &CanvasItem::edit_get_state);
-	ClassDB::bind_method(D_METHOD("edit_set_rect", "rect"), &CanvasItem::edit_set_rect);
-	ClassDB::bind_method(D_METHOD("edit_rotate", "degrees"), &CanvasItem::edit_rotate);
-
-	ClassDB::bind_method(D_METHOD("get_item_rect"), &CanvasItem::get_item_rect);
-	ClassDB::bind_method(D_METHOD("get_item_and_children_rect"), &CanvasItem::get_item_and_children_rect);
-	//ClassDB::bind_method(D_METHOD("get_transform"),&CanvasItem::get_transform);
+	ClassDB::bind_method(D_METHOD("_edit_set_position", "position"), &CanvasItem::_edit_set_position);
+	ClassDB::bind_method(D_METHOD("_edit_get_position"), &CanvasItem::_edit_get_position);
+	ClassDB::bind_method(D_METHOD("_edit_use_position"), &CanvasItem::_edit_use_position);
+	ClassDB::bind_method(D_METHOD("_edit_set_rect", "rect"), &CanvasItem::_edit_set_rect);
+	ClassDB::bind_method(D_METHOD("_edit_get_rect"), &CanvasItem::_edit_get_rect);
+	ClassDB::bind_method(D_METHOD("_edit_use_rect"), &CanvasItem::_edit_use_rect);
+	ClassDB::bind_method(D_METHOD("_edit_get_item_and_children_rect"), &CanvasItem::_edit_get_item_and_children_rect);
+	ClassDB::bind_method(D_METHOD("_edit_set_rotation", "degrees"), &CanvasItem::_edit_set_rotation);
+	ClassDB::bind_method(D_METHOD("_edit_get_rotation"), &CanvasItem::_edit_get_rotation);
+	ClassDB::bind_method(D_METHOD("_edit_use_rotation"), &CanvasItem::_edit_use_rotation);
+	ClassDB::bind_method(D_METHOD("_edit_set_pivot", "pivot"), &CanvasItem::_edit_set_pivot);
+	ClassDB::bind_method(D_METHOD("_edit_get_pivot"), &CanvasItem::_edit_get_pivot);
+	ClassDB::bind_method(D_METHOD("_edit_use_pivot"), &CanvasItem::_edit_use_pivot);
 
 	ClassDB::bind_method(D_METHOD("get_canvas_item"), &CanvasItem::get_canvas_item);
 
@@ -975,19 +1002,21 @@ void CanvasItem::_bind_methods() {
 	ClassDB::bind_method(D_METHOD("draw_line", "from", "to", "color", "width", "antialiased"), &CanvasItem::draw_line, DEFVAL(1.0), DEFVAL(false));
 	ClassDB::bind_method(D_METHOD("draw_polyline", "points", "color", "width", "antialiased"), &CanvasItem::draw_polyline, DEFVAL(1.0), DEFVAL(false));
 	ClassDB::bind_method(D_METHOD("draw_polyline_colors", "points", "colors", "width", "antialiased"), &CanvasItem::draw_polyline_colors, DEFVAL(1.0), DEFVAL(false));
+	ClassDB::bind_method(D_METHOD("draw_multiline", "points", "color", "width", "antialiased"), &CanvasItem::draw_multiline, DEFVAL(1.0), DEFVAL(false));
+	ClassDB::bind_method(D_METHOD("draw_multiline_colors", "points", "colors", "width", "antialiased"), &CanvasItem::draw_multiline_colors, DEFVAL(1.0), DEFVAL(false));
 	ClassDB::bind_method(D_METHOD("draw_rect", "rect", "color", "filled"), &CanvasItem::draw_rect, DEFVAL(true));
-	ClassDB::bind_method(D_METHOD("draw_circle", "pos", "radius", "color"), &CanvasItem::draw_circle);
-	ClassDB::bind_method(D_METHOD("draw_texture", "texture", "pos", "modulate", "normal_map"), &CanvasItem::draw_texture, DEFVAL(Color(1, 1, 1, 1)), DEFVAL(Variant()));
+	ClassDB::bind_method(D_METHOD("draw_circle", "position", "radius", "color"), &CanvasItem::draw_circle);
+	ClassDB::bind_method(D_METHOD("draw_texture", "texture", "position", "modulate", "normal_map"), &CanvasItem::draw_texture, DEFVAL(Color(1, 1, 1, 1)), DEFVAL(Variant()));
 	ClassDB::bind_method(D_METHOD("draw_texture_rect", "texture", "rect", "tile", "modulate", "transpose", "normal_map"), &CanvasItem::draw_texture_rect, DEFVAL(Color(1, 1, 1)), DEFVAL(false), DEFVAL(Variant()));
 	ClassDB::bind_method(D_METHOD("draw_texture_rect_region", "texture", "rect", "src_rect", "modulate", "transpose", "normal_map", "clip_uv"), &CanvasItem::draw_texture_rect_region, DEFVAL(Color(1, 1, 1)), DEFVAL(false), DEFVAL(Variant()), DEFVAL(true));
 	ClassDB::bind_method(D_METHOD("draw_style_box", "style_box", "rect"), &CanvasItem::draw_style_box);
 	ClassDB::bind_method(D_METHOD("draw_primitive", "points", "colors", "uvs", "texture", "width", "normal_map"), &CanvasItem::draw_primitive, DEFVAL(Variant()), DEFVAL(1.0), DEFVAL(Variant()));
 	ClassDB::bind_method(D_METHOD("draw_polygon", "points", "colors", "uvs", "texture", "normal_map", "antialiased"), &CanvasItem::draw_polygon, DEFVAL(PoolVector2Array()), DEFVAL(Variant()), DEFVAL(Variant()), DEFVAL(false));
 	ClassDB::bind_method(D_METHOD("draw_colored_polygon", "points", "color", "uvs", "texture", "normal_map", "antialiased"), &CanvasItem::draw_colored_polygon, DEFVAL(PoolVector2Array()), DEFVAL(Variant()), DEFVAL(Variant()), DEFVAL(false));
-	ClassDB::bind_method(D_METHOD("draw_string", "font", "pos", "text", "modulate", "clip_w"), &CanvasItem::draw_string, DEFVAL(Color(1, 1, 1)), DEFVAL(-1));
-	ClassDB::bind_method(D_METHOD("draw_char", "font", "pos", "char", "next", "modulate"), &CanvasItem::draw_char, DEFVAL(Color(1, 1, 1)));
+	ClassDB::bind_method(D_METHOD("draw_string", "font", "position", "text", "modulate", "clip_w"), &CanvasItem::draw_string, DEFVAL(Color(1, 1, 1)), DEFVAL(-1));
+	ClassDB::bind_method(D_METHOD("draw_char", "font", "position", "char", "next", "modulate"), &CanvasItem::draw_char, DEFVAL(Color(1, 1, 1)));
 
-	ClassDB::bind_method(D_METHOD("draw_set_transform", "pos", "rot", "scale"), &CanvasItem::draw_set_transform);
+	ClassDB::bind_method(D_METHOD("draw_set_transform", "position", "rotation", "scale"), &CanvasItem::draw_set_transform);
 	ClassDB::bind_method(D_METHOD("draw_set_transform_matrix", "xform"), &CanvasItem::draw_set_transform_matrix);
 	ClassDB::bind_method(D_METHOD("get_transform"), &CanvasItem::get_transform);
 	ClassDB::bind_method(D_METHOD("get_global_transform"), &CanvasItem::get_global_transform);
@@ -995,7 +1024,7 @@ void CanvasItem::_bind_methods() {
 	ClassDB::bind_method(D_METHOD("get_viewport_transform"), &CanvasItem::get_viewport_transform);
 	ClassDB::bind_method(D_METHOD("get_viewport_rect"), &CanvasItem::get_viewport_rect);
 	ClassDB::bind_method(D_METHOD("get_canvas_transform"), &CanvasItem::get_canvas_transform);
-	ClassDB::bind_method(D_METHOD("get_local_mouse_pos"), &CanvasItem::get_local_mouse_pos);
+	ClassDB::bind_method(D_METHOD("get_local_mouse_position"), &CanvasItem::get_local_mouse_position);
 	ClassDB::bind_method(D_METHOD("get_global_mouse_position"), &CanvasItem::get_global_mouse_position);
 	ClassDB::bind_method(D_METHOD("get_canvas"), &CanvasItem::get_canvas);
 	ClassDB::bind_method(D_METHOD("get_world_2d"), &CanvasItem::get_world_2d);
@@ -1013,8 +1042,7 @@ void CanvasItem::_bind_methods() {
 	ClassDB::bind_method(D_METHOD("set_notify_transform", "enable"), &CanvasItem::set_notify_transform);
 	ClassDB::bind_method(D_METHOD("is_transform_notification_enabled"), &CanvasItem::is_transform_notification_enabled);
 
-	ClassDB::bind_method(D_METHOD("make_canvas_pos_local", "screen_point"),
-			&CanvasItem::make_canvas_pos_local);
+	ClassDB::bind_method(D_METHOD("make_canvas_position_local", "screen_point"), &CanvasItem::make_canvas_position_local);
 	ClassDB::bind_method(D_METHOD("make_input_local", "event"), &CanvasItem::make_input_local);
 
 	BIND_VMETHOD(MethodInfo("_draw"));
@@ -1045,11 +1073,11 @@ void CanvasItem::_bind_methods() {
 	BIND_ENUM_CONSTANT(BLEND_MODE_MUL);
 	BIND_ENUM_CONSTANT(BLEND_MODE_PREMULT_ALPHA);
 
+	BIND_CONSTANT(NOTIFICATION_TRANSFORM_CHANGED);
 	BIND_CONSTANT(NOTIFICATION_DRAW);
 	BIND_CONSTANT(NOTIFICATION_VISIBILITY_CHANGED);
 	BIND_CONSTANT(NOTIFICATION_ENTER_CANVAS);
 	BIND_CONSTANT(NOTIFICATION_EXIT_CANVAS);
-	BIND_CONSTANT(NOTIFICATION_TRANSFORM_CHANGED);
 }
 
 Transform2D CanvasItem::get_canvas_transform() const {
@@ -1113,14 +1141,14 @@ int CanvasItem::get_canvas_layer() const {
 		return 0;
 }
 
-Rect2 CanvasItem::get_item_and_children_rect() const {
+Rect2 CanvasItem::_edit_get_item_and_children_rect() const {
 
-	Rect2 rect = get_item_rect();
+	Rect2 rect = _edit_get_rect();
 
 	for (int i = 0; i < get_child_count(); i++) {
 		CanvasItem *c = Object::cast_to<CanvasItem>(get_child(i));
 		if (c) {
-			Rect2 sir = c->get_transform().xform(c->get_item_and_children_rect());
+			Rect2 sir = c->get_transform().xform(c->_edit_get_item_and_children_rect());
 			rect = rect.merge(sir);
 		}
 	}
@@ -1128,8 +1156,8 @@ Rect2 CanvasItem::get_item_and_children_rect() const {
 	return rect;
 }
 
-CanvasItem::CanvasItem()
-	: xform_change(this) {
+CanvasItem::CanvasItem() :
+		xform_change(this) {
 
 	canvas_item = VisualServer::get_singleton()->canvas_item_create();
 	visible = true;

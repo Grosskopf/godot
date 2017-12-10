@@ -28,6 +28,7 @@
 /* SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.                */
 /*************************************************************************/
 #include "os_uwp.h"
+
 #include "drivers/gles3/rasterizer_gles3.h"
 #include "drivers/unix/ip_unix.h"
 #include "drivers/windows/dir_access_windows.h"
@@ -40,6 +41,7 @@
 #include "platform/windows/packet_peer_udp_winsock.h"
 #include "platform/windows/stream_peer_winsock.h"
 #include "platform/windows/tcp_server_winsock.h"
+#include "platform/windows/windows_terminal_logger.h"
 #include "project_settings.h"
 #include "servers/audio_server.h"
 #include "servers/visual/visual_server_raster.h"
@@ -68,12 +70,7 @@ int OSUWP::get_video_driver_count() const {
 }
 const char *OSUWP::get_video_driver_name(int p_driver) const {
 
-	return "GLES2";
-}
-
-OS::VideoMode OSUWP::get_default_video_mode() const {
-
-	return video_mode;
+	return "GLES3";
 }
 
 Size2 OSUWP::get_window_size() const {
@@ -244,6 +241,7 @@ void OSUWP::initialize(const VideoMode &p_desired, int p_video_driver, int p_aud
 
 	RasterizerGLES3::register_config();
 	RasterizerGLES3::make_current();
+	gl_context->set_use_vsync(vm.use_vsync);
 
 	visual_server = memnew(VisualServerRaster);
 	// FIXME: Reimplement threaded rendering? Or remove?
@@ -254,13 +252,6 @@ void OSUWP::initialize(const VideoMode &p_desired, int p_video_driver, int p_aud
 	}
 	*/
 
-	//
-	physics_server = memnew(PhysicsServerSW);
-	physics_server->init();
-
-	physics_2d_server = memnew(Physics2DServerSW);
-	physics_2d_server->init();
-
 	visual_server->init();
 
 	input = memnew(InputDefault);
@@ -268,12 +259,7 @@ void OSUWP::initialize(const VideoMode &p_desired, int p_video_driver, int p_aud
 	joypad = ref new JoypadUWP(input);
 	joypad->register_events();
 
-	AudioDriverManager::get_driver(p_audio_driver)->set_singleton();
-
-	if (AudioDriverManager::get_driver(p_audio_driver)->init() != OK) {
-
-		ERR_PRINT("Initializing audio failed.");
-	}
+	AudioDriverManager::initialize(p_audio_driver);
 
 	power_manager = memnew(PowerUWP);
 
@@ -305,7 +291,7 @@ void OSUWP::initialize(const VideoMode &p_desired, int p_video_driver, int p_aud
 				ref new TypedEventHandler<Gyrometer ^, GyrometerReadingChangedEventArgs ^>(managed_object, &ManagedType::on_gyroscope_reading_changed);
 	}
 
-	_ensure_data_dir();
+	_ensure_user_data_dir();
 
 	if (is_keep_screen_on())
 		display_request->RequestActive();
@@ -364,43 +350,11 @@ void OSUWP::finalize() {
 
 	memdelete(input);
 
-	physics_server->finish();
-	memdelete(physics_server);
-
-	physics_2d_server->finish();
-	memdelete(physics_2d_server);
-
 	joypad = nullptr;
 }
 
 void OSUWP::finalize_core() {
 }
-
-void OSUWP::vprint(const char *p_format, va_list p_list, bool p_stderr) {
-
-	char buf[16384 + 1];
-	int len = vsnprintf(buf, 16384, p_format, p_list);
-	if (len <= 0)
-		return;
-	buf[len] = 0;
-
-	int wlen = MultiByteToWideChar(CP_UTF8, 0, buf, len, NULL, 0);
-	if (wlen < 0)
-		return;
-
-	wchar_t *wbuf = (wchar_t *)malloc((len + 1) * sizeof(wchar_t));
-	MultiByteToWideChar(CP_UTF8, 0, buf, len, wbuf, wlen);
-	wbuf[wlen] = 0;
-
-	if (p_stderr)
-		fwprintf(stderr, L"%s", wbuf);
-	else
-		wprintf(L"%s", wbuf);
-
-	free(wbuf);
-
-	fflush(stdout);
-};
 
 void OSUWP::alert(const String &p_alert, const String &p_title) {
 
@@ -523,30 +477,6 @@ OS::VideoMode OSUWP::get_video_mode(int p_screen) const {
 	return video_mode;
 }
 void OSUWP::get_fullscreen_mode_list(List<VideoMode> *p_list, int p_screen) const {
-}
-
-void OSUWP::print_error(const char *p_function, const char *p_file, int p_line, const char *p_code, const char *p_rationale, ErrorType p_type) {
-
-	const char *err_details;
-	if (p_rationale && p_rationale[0])
-		err_details = p_rationale;
-	else
-		err_details = p_code;
-
-	switch (p_type) {
-		case ERR_ERROR:
-			print("ERROR: %s: %s\n", p_function, err_details);
-			print("   At: %s:%i\n", p_file, p_line);
-			break;
-		case ERR_WARNING:
-			print("WARNING: %s: %s\n", p_function, err_details);
-			print("     At: %s:%i\n", p_file, p_line);
-			break;
-		case ERR_SCRIPT:
-			print("SCRIPT ERROR: %s: %s\n", p_function, err_details);
-			print("          At: %s:%i\n", p_file, p_line);
-			break;
-	}
 }
 
 String OSUWP::get_name() {
@@ -721,7 +651,7 @@ void OSUWP::set_cursor_shape(CursorShape p_shape) {
 	cursor_shape = p_shape;
 }
 
-Error OSUWP::execute(const String &p_path, const List<String> &p_arguments, bool p_blocking, ProcessID *r_child_id, String *r_pipe, int *r_exitcode) {
+Error OSUWP::execute(const String &p_path, const List<String> &p_arguments, bool p_blocking, ProcessID *r_child_id, String *r_pipe, int *r_exitcode, bool read_stderr) {
 
 	return FAILED;
 };
@@ -844,7 +774,7 @@ MainLoop *OSUWP::get_main_loop() const {
 	return main_loop;
 }
 
-String OSUWP::get_data_dir() const {
+String OSUWP::get_user_data_dir() const {
 
 	Windows::Storage::StorageFolder ^ data_folder = Windows::Storage::ApplicationData::Current->LocalFolder;
 
@@ -895,6 +825,10 @@ OSUWP::OSUWP() {
 	mouse_mode_changed = CreateEvent(NULL, TRUE, FALSE, L"os_mouse_mode_changed");
 
 	AudioDriverManager::add_driver(&audio_driver);
+
+	Vector<Logger *> loggers;
+	loggers.push_back(memnew(WindowsTerminalLogger));
+	_set_logger(memnew(CompositeLogger(loggers)));
 }
 
 OSUWP::~OSUWP() {

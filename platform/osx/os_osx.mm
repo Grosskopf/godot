@@ -35,8 +35,8 @@
 #include "os/keyboard.h"
 #include "print_string.h"
 #include "sem_osx.h"
-#include "servers/physics/physics_server_sw.h"
 #include "servers/visual/visual_server_raster.h"
+#include "version_generated.gen.h"
 
 #include <Carbon/Carbon.h>
 #import <Cocoa/Cocoa.h>
@@ -84,6 +84,15 @@ static int prev_mouse_x = 0;
 static int prev_mouse_y = 0;
 static int button_mask = 0;
 static bool mouse_down_control = false;
+
+static Vector2 get_mouse_pos(NSEvent *event) {
+
+	const NSRect contentRect = [OS_OSX::singleton->window_view frame];
+	const NSPoint p = [event locationInWindow];
+	mouse_x = p.x * OS_OSX::singleton->_mouse_scale([[event window] backingScaleFactor]);
+	mouse_y = (contentRect.size.height - p.y) * OS_OSX::singleton->_mouse_scale([[event window] backingScaleFactor]);
+	return Vector2(mouse_x, mouse_y);
+}
 
 @interface GodotApplication : NSApplication
 @end
@@ -180,13 +189,13 @@ static bool mouse_down_control = false;
 
 	if (newBackingScaleFactor != oldBackingScaleFactor) {
 		//Set new display scale and window size
-		OS_OSX::singleton->display_scale = newBackingScaleFactor;
+		float newDisplayScale = OS_OSX::singleton->is_hidpi_allowed() ? newBackingScaleFactor : 1.0;
 
 		const NSRect contentRect = [OS_OSX::singleton->window_view frame];
 		const NSRect fbRect = contentRect; //convertRectToBacking(contentRect);
 
-		OS_OSX::singleton->window_size.width = fbRect.size.width * OS_OSX::singleton->display_scale;
-		OS_OSX::singleton->window_size.height = fbRect.size.height * OS_OSX::singleton->display_scale;
+		OS_OSX::singleton->window_size.width = fbRect.size.width * newDisplayScale;
+		OS_OSX::singleton->window_size.height = fbRect.size.height * newDisplayScale;
 
 		//Update context
 		if (OS_OSX::singleton->main_loop) {
@@ -206,8 +215,9 @@ static bool mouse_down_control = false;
 	const NSRect contentRect = [OS_OSX::singleton->window_view frame];
 	const NSRect fbRect = contentRect; //convertRectToBacking(contentRect);
 
-	OS_OSX::singleton->window_size.width = fbRect.size.width * OS_OSX::singleton->display_scale;
-	OS_OSX::singleton->window_size.height = fbRect.size.height * OS_OSX::singleton->display_scale;
+	float displayScale = OS_OSX::singleton->_display_scale();
+	OS_OSX::singleton->window_size.width = fbRect.size.width * displayScale;
+	OS_OSX::singleton->window_size.height = fbRect.size.height * displayScale;
 
 	if (OS_OSX::singleton->main_loop) {
 		Main::force_redraw();
@@ -352,7 +362,8 @@ static const NSRange kEmptyRange = { NSNotFound, 0 };
 
 - (NSRect)firstRectForCharacterRange:(NSRange)aRange actualRange:(NSRangePointer)actualRange {
 	const NSRect contentRect = [OS_OSX::singleton->window_view frame];
-	NSRect pointInWindowRect = NSMakeRect(OS_OSX::singleton->im_position.x / OS_OSX::singleton->display_scale, contentRect.size.height - (OS_OSX::singleton->im_position.y / OS_OSX::singleton->display_scale) - 1, 0, 0);
+	float displayScale = OS_OSX::singleton->_display_scale();
+	NSRect pointInWindowRect = NSMakeRect(OS_OSX::singleton->im_position.x / displayScale, contentRect.size.height - (OS_OSX::singleton->im_position.y / displayScale) - 1, 0, 0);
 	NSPoint pointOnScreen = [[OS_OSX::singleton->window_view window] convertRectToScreen:pointInWindowRect].origin;
 
 	return NSMakeRect(pointOnScreen.x, pointOnScreen.y, 0, 0);
@@ -506,12 +517,9 @@ static void _mouseDownEvent(NSEvent *event, int index, int mask, bool pressed) {
 	mm->set_button_mask(button_mask);
 	prev_mouse_x = mouse_x;
 	prev_mouse_y = mouse_y;
-	const NSRect contentRect = [OS_OSX::singleton->window_view frame];
-	const NSPoint p = [event locationInWindow];
-	mouse_x = p.x * OS_OSX::singleton->_mouse_scale([[event window] backingScaleFactor]);
-	mouse_y = (contentRect.size.height - p.y) * OS_OSX::singleton->_mouse_scale([[event window] backingScaleFactor]);
-	mm->set_position(Vector2(mouse_x, mouse_y));
-	mm->set_global_position(Vector2(mouse_x, mouse_y));
+	const Vector2 pos = get_mouse_pos(event);
+	mm->set_position(pos);
+	mm->set_global_position(pos);
 	Vector2 relativeMotion = Vector2();
 	relativeMotion.x = [event deltaX] * OS_OSX::singleton->_mouse_scale([[event window] backingScaleFactor]);
 	relativeMotion.y = [event deltaY] * OS_OSX::singleton->_mouse_scale([[event window] backingScaleFactor]);
@@ -571,6 +579,15 @@ static void _mouseDownEvent(NSEvent *event, int index, int mask, bool pressed) {
 		OS_OSX::singleton->main_loop->notification(MainLoop::NOTIFICATION_WM_MOUSE_ENTER);
 	if (OS_OSX::singleton->input)
 		OS_OSX::singleton->input->set_mouse_in_window(true);
+}
+
+- (void)magnifyWithEvent:(NSEvent *)event {
+	Ref<InputEventMagnifyGesture> ev;
+	ev.instance();
+	get_key_modifier_state([event modifierFlags], ev);
+	ev->set_position(get_mouse_pos(event));
+	ev->set_factor([event magnification] + 1.0);
+	OS_OSX::singleton->push_input(ev);
 }
 
 - (void)viewDidChangeBackingProperties {
@@ -836,6 +853,18 @@ inline void sendScrollEvent(int button, double factor, int modifierFlags) {
 	OS_OSX::singleton->push_input(sc);
 }
 
+inline void sendPanEvent(double dx, double dy, int modifierFlags) {
+
+	Ref<InputEventPanGesture> pg;
+	pg.instance();
+
+	get_key_modifier_state(modifierFlags, pg);
+	Vector2 mouse_pos = Vector2(mouse_x, mouse_y);
+	pg->set_position(mouse_pos);
+	pg->set_delta(Vector2(-dx, -dy));
+	OS_OSX::singleton->push_input(pg);
+}
+
 - (void)scrollWheel:(NSEvent *)event {
 	double deltaX, deltaY;
 
@@ -854,11 +883,16 @@ inline void sendScrollEvent(int button, double factor, int modifierFlags) {
 		deltaX = [event deltaX];
 		deltaY = [event deltaY];
 	}
-	if (fabs(deltaX)) {
-		sendScrollEvent(0 > deltaX ? BUTTON_WHEEL_RIGHT : BUTTON_WHEEL_LEFT, fabs(deltaX * 0.3), [event modifierFlags]);
-	}
-	if (fabs(deltaY)) {
-		sendScrollEvent(0 < deltaY ? BUTTON_WHEEL_UP : BUTTON_WHEEL_DOWN, fabs(deltaY * 0.3), [event modifierFlags]);
+
+	if ([event phase] != NSEventPhaseNone || [event momentumPhase] != NSEventPhaseNone) {
+		sendPanEvent(deltaX, deltaY, [event modifierFlags]);
+	} else {
+		if (fabs(deltaX)) {
+			sendScrollEvent(0 > deltaX ? BUTTON_WHEEL_RIGHT : BUTTON_WHEEL_LEFT, fabs(deltaX * 0.3), [event modifierFlags]);
+		}
+		if (fabs(deltaY)) {
+			sendScrollEvent(0 < deltaY ? BUTTON_WHEEL_UP : BUTTON_WHEEL_DOWN, fabs(deltaY * 0.3), [event modifierFlags]);
+		}
 	}
 }
 
@@ -895,17 +929,7 @@ int OS_OSX::get_video_driver_count() const {
 
 const char *OS_OSX::get_video_driver_name(int p_driver) const {
 
-	return "GLES2";
-}
-
-OS::VideoMode OS_OSX::get_default_video_mode() const {
-
-	VideoMode vm;
-	vm.width = 1024;
-	vm.height = 600;
-	vm.fullscreen = false;
-	vm.resizable = true;
-	return vm;
+	return "GLES3";
 }
 
 void OS_OSX::initialize_core() {
@@ -922,8 +946,13 @@ void OS_OSX::initialize_core() {
 }
 
 static bool keyboard_layout_dirty = true;
-static void keyboardLayoutChanged(CFNotificationCenterRef center, void *observer, CFStringRef name, const void *object, CFDictionaryRef userInfo) {
+static void keyboard_layout_changed(CFNotificationCenterRef center, void *observer, CFStringRef name, const void *object, CFDictionaryRef user_info) {
 	keyboard_layout_dirty = true;
+}
+
+static bool displays_arrangement_dirty = true;
+static void displays_arrangement_changed(CGDirectDisplayID display_id, CGDisplayChangeSummaryFlags flags, void *user_info) {
+	displays_arrangement_dirty = true;
 }
 
 void OS_OSX::initialize(const VideoMode &p_desired, int p_video_driver, int p_audio_driver) {
@@ -933,21 +962,16 @@ void OS_OSX::initialize(const VideoMode &p_desired, int p_video_driver, int p_au
 	/*** OSX INITIALIZATION ***/
 
 	keyboard_layout_dirty = true;
+	displays_arrangement_dirty = true;
 
 	// Register to be notified on keyboard layout changes
 	CFNotificationCenterAddObserver(CFNotificationCenterGetDistributedCenter(),
-			NULL, keyboardLayoutChanged,
+			NULL, keyboard_layout_changed,
 			kTISNotifySelectedKeyboardInputSourceChanged, NULL,
 			CFNotificationSuspensionBehaviorDeliverImmediately);
 
-	if (is_hidpi_allowed() && [[NSScreen mainScreen] respondsToSelector:@selector(backingScaleFactor)]) {
-		for (NSScreen *screen in [NSScreen screens]) {
-			float s = [screen backingScaleFactor];
-			if (s > display_scale) {
-				display_scale = s;
-			}
-		}
-	}
+	// Register to be notified on displays arrangement changes
+	CGDisplayRegisterReconfigurationCallback(displays_arrangement_changed, NULL);
 
 	window_delegate = [[GodotWindowDelegate alloc] init];
 
@@ -972,10 +996,19 @@ void OS_OSX::initialize(const VideoMode &p_desired, int p_video_driver, int p_au
 
 	window_view = [[GodotContentView alloc] init];
 
-	window_size.width = p_desired.width * display_scale;
-	window_size.height = p_desired.height * display_scale;
+	float displayScale = 1.0;
+	if (is_hidpi_allowed()) {
+		// note that mainScreen is not screen #0 but the one with the keyboard focus.
+		NSScreen *screen = [NSScreen mainScreen];
+		if ([screen respondsToSelector:@selector(backingScaleFactor)]) {
+			displayScale = fmax(displayScale, [screen backingScaleFactor]);
+		}
+	}
 
-	if (floor(NSAppKitVersionNumber) > NSAppKitVersionNumber10_6 && display_scale > 1) {
+	window_size.width = p_desired.width * displayScale;
+	window_size.height = p_desired.height * displayScale;
+
+	if (floor(NSAppKitVersionNumber) > NSAppKitVersionNumber10_6 && displayScale > 1.0) {
 		[window_view setWantsBestResolutionOpenGLSurface:YES];
 		//if (current_videomode.resizable)
 		[window_object setCollectionBehavior:NSWindowCollectionBehaviorFullScreenPrimary];
@@ -995,7 +1028,7 @@ void OS_OSX::initialize(const VideoMode &p_desired, int p_video_driver, int p_au
 	// OS X needs non-zero color size, so set resonable values
 	int colorBits = 32;
 
-// Fail if a robustness strategy was requested
+	// Fail if a robustness strategy was requested
 
 #define ADD_ATTR(x) \
 	{ attributes[attributeCount++] = x; }
@@ -1056,6 +1089,8 @@ void OS_OSX::initialize(const VideoMode &p_desired, int p_video_driver, int p_au
 
 	[context makeCurrentContext];
 
+	set_use_vsync(p_desired.use_vsync);
+
 	[NSApp activateIgnoringOtherApps:YES];
 
 	_update_window();
@@ -1066,19 +1101,14 @@ void OS_OSX::initialize(const VideoMode &p_desired, int p_video_driver, int p_au
 		zoomed = true;
 
 	/*** END OSX INITIALIZATION ***/
-	/*** END OSX INITIALIZATION ***/
-	/*** END OSX INITIALIZATION ***/
 
 	bool use_gl2 = p_video_driver != 1;
 
-	AudioDriverManager::add_driver(&audio_driver_osx);
+	AudioDriverManager::add_driver(&audio_driver);
 
 	// only opengl support here...
 	RasterizerGLES3::register_config();
 	RasterizerGLES3::make_current();
-
-	//rasterizer = instance_RasterizerGLES2();
-	//visual_server = memnew( VisualServerRaster(rasterizer) );
 
 	visual_server = memnew(VisualServerRaster);
 	if (get_render_thread_mode() != RENDER_THREAD_UNSAFE) {
@@ -1086,28 +1116,15 @@ void OS_OSX::initialize(const VideoMode &p_desired, int p_video_driver, int p_au
 		visual_server = memnew(VisualServerWrapMT(visual_server, get_render_thread_mode() == RENDER_SEPARATE_THREAD));
 	}
 	visual_server->init();
-	//	visual_server->cursor_set_visible(false, 0);
 
-	AudioDriverManager::get_driver(p_audio_driver)->set_singleton();
-
-	if (AudioDriverManager::get_driver(p_audio_driver)->init() != OK) {
-
-		ERR_PRINT("Initializing audio failed.");
-	}
-
-	//
-	physics_server = memnew(PhysicsServerSW);
-	physics_server->init();
-	//physics_2d_server = memnew( Physics2DServerSW );
-	physics_2d_server = Physics2DServerWrapMT::init_server<Physics2DServerSW>();
-	physics_2d_server->init();
+	AudioDriverManager::initialize(p_audio_driver);
 
 	input = memnew(InputDefault);
 	joypad_osx = memnew(JoypadOSX);
 
 	power_manager = memnew(power_osx);
 
-	_ensure_data_dir();
+	_ensure_user_data_dir();
 
 	restore_rect = Rect2(get_window_position(), get_window_size());
 }
@@ -1115,6 +1132,8 @@ void OS_OSX::initialize(const VideoMode &p_desired, int p_video_driver, int p_au
 void OS_OSX::finalize() {
 
 	CFNotificationCenterRemoveObserver(CFNotificationCenterGetDistributedCenter(), NULL, kTISNotifySelectedKeyboardInputSourceChanged, NULL);
+	CGDisplayRemoveReconfigurationCallback(displays_arrangement_changed, NULL);
+
 	delete_main_loop();
 
 	memdelete(joypad_osx);
@@ -1123,12 +1142,6 @@ void OS_OSX::finalize() {
 	visual_server->finish();
 	memdelete(visual_server);
 	//memdelete(rasterizer);
-
-	physics_server->finish();
-	memdelete(physics_server);
-
-	physics_2d_server->finish();
-	memdelete(physics_2d_server);
 }
 
 void OS_OSX::set_main_loop(MainLoop *p_main_loop) {
@@ -1150,44 +1163,61 @@ String OS_OSX::get_name() {
 	return "OSX";
 }
 
-void OS_OSX::print_error(const char *p_function, const char *p_file, int p_line, const char *p_code, const char *p_rationale, ErrorType p_type) {
-
 #if MAC_OS_X_VERSION_MAX_ALLOWED >= 101200
-	if (!_print_error_enabled)
-		return;
+class OSXTerminalLogger : public StdLogger {
+public:
+	virtual void log_error(const char *p_function, const char *p_file, int p_line, const char *p_code, const char *p_rationale, ErrorType p_type = ERR_ERROR) {
+		if (!should_log(true)) {
+			return;
+		}
 
-	const char *err_details;
-	if (p_rationale && p_rationale[0])
-		err_details = p_rationale;
-	else
-		err_details = p_code;
+		const char *err_details;
+		if (p_rationale && p_rationale[0])
+			err_details = p_rationale;
+		else
+			err_details = p_code;
 
-	switch (p_type) {
-		case ERR_ERROR:
-			os_log_error(OS_LOG_DEFAULT, "ERROR: %{public}s: %{public}s\nAt: %{public}s:%i.", p_function, err_details, p_file, p_line);
-			print("\E[1;31mERROR: %s: \E[0m\E[1m%s\n", p_function, err_details);
-			print("\E[0;31m   At: %s:%i.\E[0m\n", p_file, p_line);
-			break;
-		case ERR_WARNING:
-			os_log_info(OS_LOG_DEFAULT, "WARNING: %{public}s: %{public}s\nAt: %{public}s:%i.", p_function, err_details, p_file, p_line);
-			print("\E[1;33mWARNING: %s: \E[0m\E[1m%s\n", p_function, err_details);
-			print("\E[0;33m   At: %s:%i.\E[0m\n", p_file, p_line);
-			break;
-		case ERR_SCRIPT:
-			os_log_error(OS_LOG_DEFAULT, "SCRIPT ERROR: %{public}s: %{public}s\nAt: %{public}s:%i.", p_function, err_details, p_file, p_line);
-			print("\E[1;35mSCRIPT ERROR: %s: \E[0m\E[1m%s\n", p_function, err_details);
-			print("\E[0;35m   At: %s:%i.\E[0m\n", p_file, p_line);
-			break;
-		case ERR_SHADER:
-			os_log_error(OS_LOG_DEFAULT, "SHADER ERROR: %{public}s: %{public}s\nAt: %{public}s:%i.", p_function, err_details, p_file, p_line);
-			print("\E[1;36mSHADER ERROR: %s: \E[0m\E[1m%s\n", p_function, err_details);
-			print("\E[0;36m   At: %s:%i.\E[0m\n", p_file, p_line);
-			break;
+		switch (p_type) {
+			case ERR_WARNING:
+				os_log_info(OS_LOG_DEFAULT,
+						"WARNING: %{public}s: %{public}s\nAt: %{public}s:%i.",
+						p_function, err_details, p_file, p_line);
+				logf_error("\E[1;33mWARNING: %s: \E[0m\E[1m%s\n", p_function,
+						err_details);
+				logf_error("\E[0;33m   At: %s:%i.\E[0m\n", p_file, p_line);
+				break;
+			case ERR_SCRIPT:
+				os_log_error(OS_LOG_DEFAULT,
+						"SCRIPT ERROR: %{public}s: %{public}s\nAt: %{public}s:%i.",
+						p_function, err_details, p_file, p_line);
+				logf_error("\E[1;35mSCRIPT ERROR: %s: \E[0m\E[1m%s\n", p_function,
+						err_details);
+				logf_error("\E[0;35m   At: %s:%i.\E[0m\n", p_file, p_line);
+				break;
+			case ERR_SHADER:
+				os_log_error(OS_LOG_DEFAULT,
+						"SHADER ERROR: %{public}s: %{public}s\nAt: %{public}s:%i.",
+						p_function, err_details, p_file, p_line);
+				logf_error("\E[1;36mSHADER ERROR: %s: \E[0m\E[1m%s\n", p_function,
+						err_details);
+				logf_error("\E[0;36m   At: %s:%i.\E[0m\n", p_file, p_line);
+				break;
+			case ERR_ERROR:
+			default:
+				os_log_error(OS_LOG_DEFAULT,
+						"ERROR: %{public}s: %{public}s\nAt: %{public}s:%i.",
+						p_function, err_details, p_file, p_line);
+				logf_error("\E[1;31mERROR: %s: \E[0m\E[1m%s\n", p_function, err_details);
+				logf_error("\E[0;31m   At: %s:%i.\E[0m\n", p_file, p_line);
+				break;
+		}
 	}
+};
+
 #else
-	OS_Unix::print_error(p_function, p_file, p_line, p_code, p_rationale, p_type);
+
+typedef UnixTerminalLogger OSXTerminalLogger;
 #endif
-}
 
 void OS_OSX::alert(const String &p_alert, const String &p_title) {
 	// Set OS X-compliant variables
@@ -1245,7 +1275,7 @@ bool OS_OSX::is_mouse_grab_enabled() const {
 	return mouse_grab;
 }
 
-void OS_OSX::warp_mouse_pos(const Point2 &p_to) {
+void OS_OSX::warp_mouse_position(const Point2 &p_to) {
 
 	//copied from windows impl with osx native calls
 	if (mouse_mode == MOUSE_MODE_CAPTURED) {
@@ -1255,7 +1285,8 @@ void OS_OSX::warp_mouse_pos(const Point2 &p_to) {
 
 		//local point in window coords
 		const NSRect contentRect = [window_view frame];
-		NSRect pointInWindowRect = NSMakeRect(p_to.x / display_scale, contentRect.size.height - (p_to.y / display_scale) - 1, 0, 0);
+		float displayScale = _display_scale();
+		NSRect pointInWindowRect = NSMakeRect(p_to.x / displayScale, contentRect.size.height - (p_to.y / displayScale) - 1, 0, 0);
 		NSPoint pointOnScreen = [[window_view window] convertRectToScreen:pointInWindowRect].origin;
 
 		//point in scren coords
@@ -1327,6 +1358,43 @@ void OS_OSX::set_icon(const Ref<Image> &p_icon) {
 MainLoop *OS_OSX::get_main_loop() const {
 
 	return main_loop;
+}
+
+String OS_OSX::get_config_path() const {
+
+	if (has_environment("XDG_CONFIG_HOME")) {
+		return get_environment("XDG_CONFIG_HOME");
+	} else if (has_environment("HOME")) {
+		return get_environment("HOME").plus_file("Library/Application Support");
+	} else {
+		return ".";
+	}
+}
+
+String OS_OSX::get_data_path() const {
+
+	if (has_environment("XDG_DATA_HOME")) {
+		return get_environment("XDG_DATA_HOME");
+	} else {
+		return get_config_path();
+	}
+}
+
+String OS_OSX::get_cache_path() const {
+
+	if (has_environment("XDG_CACHE_HOME")) {
+		return get_environment("XDG_CACHE_HOME");
+	} else if (has_environment("HOME")) {
+		return get_environment("HOME").plus_file("Library/Caches");
+	} else {
+		return get_config_path();
+	}
+}
+
+// Get properly capitalized engine name for system paths
+String OS_OSX::get_godot_dir_name() const {
+
+	return String(VERSION_SHORT_NAME).capitalize();
 }
 
 String OS_OSX::get_system_dir(SystemDir p_dir) const {
@@ -1417,7 +1485,7 @@ void OS_OSX::make_rendering_thread() {
 
 Error OS_OSX::shell_open(String p_uri) {
 
-	[[NSWorkspace sharedWorkspace] openURL:[[NSURL alloc] initWithString:[NSString stringWithUTF8String:p_uri.utf8().get_data()]]];
+	[[NSWorkspace sharedWorkspace] openURL:[[NSURL alloc] initWithString:[[NSString stringWithUTF8String:p_uri.utf8().get_data()] stringByAddingPercentEncodingWithAllowedCharacters:[NSCharacterSet URLFragmentAllowedCharacterSet]]]];
 	return OK;
 }
 
@@ -1456,17 +1524,43 @@ int OS_OSX::get_screen_count() const {
 	return [screenArray count];
 };
 
-int OS_OSX::get_current_screen() const {
-	Vector2 wpos = get_window_position();
+// Returns the native top-left screen coordinate of the smallest rectangle
+// that encompasses all screens. Needed in get_screen_position(),
+// get_window_position, and set_window_position()
+// to convert between OS X native screen coordinates and the ones expected by Godot
+Point2 OS_OSX::get_screens_origin() const {
+	static Point2 origin;
 
-	int count = get_screen_count();
-	for (int i = 0; i < count; i++) {
-		Point2 pos = get_screen_position(i);
-		Size2 size = get_screen_size(i);
-		if ((wpos.x >= pos.x && wpos.x < pos.x + size.width) && (wpos.y >= pos.y && wpos.y < pos.y + size.height))
-			return i;
+	if (displays_arrangement_dirty) {
+		origin = Point2();
+
+		for (int i = 0; i < get_screen_count(); i++) {
+			Point2 position = get_native_screen_position(i);
+			if (position.x < origin.x) {
+				origin.x = position.x;
+			}
+			if (position.y > origin.y) {
+				origin.y = position.y;
+			}
+		}
+
+		displays_arrangement_dirty = false;
 	}
-	return 0;
+
+	return origin;
+}
+
+static int get_screen_index(NSScreen *screen) {
+	const NSUInteger index = [[NSScreen screens] indexOfObject:screen];
+	return index == NSNotFound ? 0 : index;
+}
+
+int OS_OSX::get_current_screen() const {
+	if (window_object) {
+		return get_screen_index([window_object screen]);
+	} else {
+		return get_screen_index([NSScreen mainScreen]);
+	}
 };
 
 void OS_OSX::set_current_screen(int p_screen) {
@@ -1474,24 +1568,28 @@ void OS_OSX::set_current_screen(int p_screen) {
 	set_window_position(wpos + get_screen_position(p_screen));
 };
 
-Point2 OS_OSX::get_screen_position(int p_screen) const {
+Point2 OS_OSX::get_native_screen_position(int p_screen) const {
 	if (p_screen == -1) {
 		p_screen = get_current_screen();
 	}
 
 	NSArray *screenArray = [NSScreen screens];
 	if (p_screen < [screenArray count]) {
-		float displayScale = 1.0;
-
-		if (display_scale > 1.0 && [[screenArray objectAtIndex:p_screen] respondsToSelector:@selector(backingScaleFactor)]) {
-			displayScale = [[screenArray objectAtIndex:p_screen] backingScaleFactor];
-		}
-
+		float display_scale = _display_scale([screenArray objectAtIndex:p_screen]);
 		NSRect nsrect = [[screenArray objectAtIndex:p_screen] frame];
-		return Point2(nsrect.origin.x, nsrect.origin.y) * displayScale;
+		// Return the top-left corner of the screen, for OS X the y starts at the bottom
+		return Point2(nsrect.origin.x, nsrect.origin.y + nsrect.size.height) * display_scale;
 	}
 
 	return Point2();
+}
+
+Point2 OS_OSX::get_screen_position(int p_screen) const {
+	Point2 position = get_native_screen_position(p_screen) - get_screens_origin();
+	// OS X native y-coordinate relative to get_screens_origin() is negative,
+	// Godot expects a positive value
+	position.y *= -1;
+	return position;
 }
 
 int OS_OSX::get_screen_dpi(int p_screen) const {
@@ -1501,12 +1599,7 @@ int OS_OSX::get_screen_dpi(int p_screen) const {
 
 	NSArray *screenArray = [NSScreen screens];
 	if (p_screen < [screenArray count]) {
-		float displayScale = 1.0;
-
-		if (display_scale > 1.0 && [[screenArray objectAtIndex:p_screen] respondsToSelector:@selector(backingScaleFactor)]) {
-			displayScale = [[screenArray objectAtIndex:p_screen] backingScaleFactor];
-		}
-
+		float displayScale = _display_scale([screenArray objectAtIndex:p_screen]);
 		NSDictionary *description = [[screenArray objectAtIndex:p_screen] deviceDescription];
 		NSSize displayPixelSize = [[description objectForKey:NSDeviceSize] sizeValue];
 		CGSize displayPhysicalSize = CGDisplayScreenSize(
@@ -1525,12 +1618,7 @@ Size2 OS_OSX::get_screen_size(int p_screen) const {
 
 	NSArray *screenArray = [NSScreen screens];
 	if (p_screen < [screenArray count]) {
-		float displayScale = 1.0;
-
-		if (display_scale > 1.0 && [[screenArray objectAtIndex:p_screen] respondsToSelector:@selector(backingScaleFactor)]) {
-			displayScale = [[screenArray objectAtIndex:p_screen] backingScaleFactor];
-		}
-
+		float displayScale = _display_scale([screenArray objectAtIndex:p_screen]);
 		// Note: Use frame to get the whole screen size
 		NSRect nsrect = [[screenArray objectAtIndex:p_screen] frame];
 		return Size2(nsrect.size.width, nsrect.size.height) * displayScale;
@@ -1564,25 +1652,64 @@ void OS_OSX::_update_window() {
 	}
 }
 
-Point2 OS_OSX::get_window_position() const {
+float OS_OSX::_display_scale() const {
+	if (window_object) {
+		return _display_scale([window_object screen]);
+	} else {
+		return _display_scale([NSScreen mainScreen]);
+	}
+}
 
-	Size2 wp([window_object frame].origin.x, [window_object frame].origin.y);
-	wp *= display_scale;
-	return wp;
+float OS_OSX::_display_scale(id screen) const {
+	if (is_hidpi_allowed()) {
+		if ([screen respondsToSelector:@selector(backingScaleFactor)]) {
+			return fmax(1.0, [screen backingScaleFactor]);
+		}
+	} else {
+		return 1.0;
+	}
+}
+
+Point2 OS_OSX::get_native_window_position() const {
+
+	NSRect nsrect = [window_object frame];
+	Point2 pos;
+	float display_scale = _display_scale();
+
+	// Return the position of the top-left corner, for OS X the y starts at the bottom
+	pos.x = nsrect.origin.x * display_scale;
+	pos.y = (nsrect.origin.y + nsrect.size.height) * display_scale;
+
+	return pos;
 };
 
-void OS_OSX::set_window_position(const Point2 &p_position) {
+Point2 OS_OSX::get_window_position() const {
+	Point2 position = get_native_window_position() - get_screens_origin();
+	// OS X native y-coordinate relative to get_screens_origin() is negative,
+	// Godot expects a positive value
+	position.y *= -1;
+	return position;
+}
 
-	Size2 scr = get_screen_size();
+void OS_OSX::set_native_window_position(const Point2 &p_position) {
+
 	NSPoint pos;
+	float displayScale = _display_scale();
 
-	pos.x = p_position.x / display_scale;
-	// For OS X the y starts at the bottom
-	pos.y = (scr.height - p_position.y) / display_scale;
+	pos.x = p_position.x / displayScale;
+	pos.y = p_position.y / displayScale;
 
 	[window_object setFrameTopLeftPoint:pos];
 
 	_update_window();
+};
+
+void OS_OSX::set_window_position(const Point2 &p_position) {
+	Point2 position = p_position;
+	// OS X native y-coordinate relative to get_screens_origin() is negative,
+	// Godot passes a positive value
+	position.y *= -1;
+	set_native_window_position(get_screens_origin() + position);
 };
 
 Size2 OS_OSX::get_window_size() const {
@@ -1738,17 +1865,6 @@ String OS_OSX::get_executable_path() const {
 	}
 }
 
-String OS_OSX::get_resource_dir() const {
-	// start with our executable path
-	String path = get_executable_path();
-
-	int pos = path.find_last("/Contents/MacOS/");
-	if (pos < 0)
-		return OS::get_resource_dir();
-
-	return path.substr(0, pos) + "/Contents/Resources/";
-}
-
 // Returns string representation of keys, if they are printable.
 //
 static NSString *createStringForKeys(const CGKeyCode *keyCode, int length) {
@@ -1817,6 +1933,8 @@ OS::LatinKeyboardVariant OS_OSX::get_latin_keyboard_variant() const {
 			layout = LATIN_KEYBOARD_DVORAK;
 		} else if ([test isEqualToString:@"xvlcwk"]) {
 			layout = LATIN_KEYBOARD_NEO;
+		} else if ([test isEqualToString:@"qwfpgj"]) {
+			layout = LATIN_KEYBOARD_COLEMAK;
 		}
 
 		[test release];
@@ -1926,6 +2044,36 @@ int OS_OSX::get_power_percent_left() {
 	return power_manager->get_power_percent_left();
 }
 
+Error OS_OSX::move_to_trash(const String &p_path) {
+	NSFileManager *fm = [NSFileManager defaultManager];
+	NSURL *url = [NSURL fileURLWithPath:@(p_path.utf8().get_data())];
+	NSError *err;
+
+	if (![fm trashItemAtURL:url resultingItemURL:nil error:&err]) {
+		ERR_PRINTS("trashItemAtURL error: " + String(err.localizedDescription.UTF8String));
+		return FAILED;
+	}
+
+	return OK;
+}
+
+void OS_OSX::set_use_vsync(bool p_enable) {
+	CGLContextObj ctx = CGLGetCurrentContext();
+	if (ctx) {
+		GLint swapInterval = p_enable ? 1 : 0;
+		CGLSetParameter(ctx, kCGLCPSwapInterval, &swapInterval);
+	}
+}
+
+bool OS_OSX::is_vsync_enabled() const {
+	GLint swapInterval = 0;
+	CGLContextObj ctx = CGLGetCurrentContext();
+	if (ctx) {
+		CGLGetParameter(ctx, kCGLCPSwapInterval, &swapInterval);
+	}
+	return swapInterval ? true : false;
+}
+
 OS_OSX *OS_OSX::singleton = NULL;
 
 OS_OSX::OS_OSX() {
@@ -2018,7 +2166,10 @@ OS_OSX::OS_OSX() {
 	minimized = false;
 	window_size = Vector2(1024, 600);
 	zoomed = false;
-	display_scale = 1.0;
+
+	Vector<Logger *> loggers;
+	loggers.push_back(memnew(OSXTerminalLogger));
+	_set_logger(memnew(CompositeLogger(loggers)));
 }
 
 bool OS_OSX::_check_internal_feature_support(const String &p_feature) {

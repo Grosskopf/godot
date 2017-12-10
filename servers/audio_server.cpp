@@ -32,6 +32,7 @@
 #include "os/file_access.h"
 #include "os/os.h"
 #include "project_settings.h"
+#include "servers/audio/audio_driver_dummy.h"
 #include "servers/audio/effects/audio_effect_compressor.h"
 #ifdef TOOLS_ENABLED
 
@@ -107,6 +108,7 @@ AudioDriver::AudioDriver() {
 
 AudioDriver *AudioDriverManager::drivers[MAX_DRIVERS];
 int AudioDriverManager::driver_count = 0;
+AudioDriverDummy AudioDriverManager::dummy_driver;
 
 void AudioDriverManager::add_driver(AudioDriver *p_driver) {
 
@@ -118,6 +120,43 @@ int AudioDriverManager::get_driver_count() {
 
 	return driver_count;
 }
+
+void AudioDriverManager::initialize(int p_driver) {
+	AudioDriver *driver;
+	int failed_driver = -1;
+
+	// Check if there is a selected driver
+	if (p_driver >= 0 && p_driver < driver_count) {
+		if (drivers[p_driver]->init() == OK) {
+			drivers[p_driver]->set_singleton();
+			return;
+		} else {
+			failed_driver = p_driver;
+		}
+	}
+
+	// No selected driver, try them all in order
+	for (int i = 0; i < driver_count; i++) {
+		// Don't re-init the driver if it failed above
+		if (i == failed_driver) {
+			continue;
+		}
+
+		if (drivers[i]->init() == OK) {
+			drivers[i]->set_singleton();
+			return;
+		}
+	}
+
+	// Fallback to our dummy driver
+	if (dummy_driver.init() == OK) {
+		ERR_PRINT("AudioDriverManager: all drivers failed, falling back to dummy driver");
+		dummy_driver.set_singleton();
+	} else {
+		ERR_PRINT("AudioDriverManager: dummy driver faild to init()");
+	}
+}
+
 AudioDriver *AudioDriverManager::get_driver(int p_driver) {
 
 	ERR_FAIL_INDEX_V(p_driver, driver_count, NULL);
@@ -152,7 +191,7 @@ void AudioServer::_driver_process(int p_frames, int32_t *p_buffer) {
 
 			if (master->channels[k].active) {
 
-				AudioFrame *buf = master->channels[k].buffer.ptr();
+				const AudioFrame *buf = master->channels[k].buffer.ptr();
 
 				for (int j = 0; j < to_copy; j++) {
 
@@ -187,7 +226,7 @@ void AudioServer::_driver_process(int p_frames, int32_t *p_buffer) {
 		static int total = 0;
 
 		ticks = OS::get_singleton()->get_ticks_msec();
-		if ((ticks - first_ticks) > 10 * 1000) {
+		if ((ticks - first_ticks) > 10 * 1000 && count > 0) {
 			print_line("Audio Driver " + String(AudioDriver::get_singleton()->get_name()) + " average latency: " + itos(total / count) + "ms (frame=" + itos(p_frames) + ")");
 			first_ticks = ticks;
 			total = 0;
@@ -257,7 +296,7 @@ void AudioServer::_mix_step() {
 
 			if (bus->channels[k].active && !bus->channels[k].used) {
 				//buffer was not used, but it's still active, so it must be cleaned
-				AudioFrame *buf = bus->channels[k].buffer.ptr();
+				AudioFrame *buf = bus->channels[k].buffer.ptrw();
 
 				for (uint32_t j = 0; j < buffer_size; j++) {
 
@@ -277,7 +316,7 @@ void AudioServer::_mix_step() {
 
 					if (!bus->channels[k].active)
 						continue;
-					bus->channels[k].effect_instances[j]->process(bus->channels[k].buffer.ptr(), temp_buffer[k].ptr(), buffer_size);
+					bus->channels[k].effect_instances[j]->process(bus->channels[k].buffer.ptr(), temp_buffer[k].ptrw(), buffer_size);
 				}
 
 				//swap buffers, so internal buffer always has the right data
@@ -311,7 +350,7 @@ void AudioServer::_mix_step() {
 			if (!bus->channels[k].active)
 				continue;
 
-			AudioFrame *buf = bus->channels[k].buffer.ptr();
+			AudioFrame *buf = bus->channels[k].buffer.ptrw();
 
 			AudioFrame peak = AudioFrame(0, 0);
 
@@ -375,7 +414,7 @@ AudioFrame *AudioServer::thread_get_channel_mix_buffer(int p_bus, int p_buffer) 
 	ERR_FAIL_INDEX_V(p_bus, buses.size(), NULL);
 	ERR_FAIL_INDEX_V(p_buffer, buses[p_bus]->channels.size(), NULL);
 
-	AudioFrame *data = buses[p_bus]->channels[p_buffer].buffer.ptr();
+	AudioFrame *data = buses[p_bus]->channels[p_buffer].buffer.ptrw();
 
 	if (!buses[p_bus]->channels[p_buffer].used) {
 		buses[p_bus]->channels[p_buffer].used = true;
@@ -837,6 +876,8 @@ void AudioServer::init() {
 #ifdef TOOLS_ENABLED
 	set_edited(false); //avoid editors from thinking this was edited
 #endif
+
+	GLOBAL_DEF("audio/video_delay_compensation_ms", 0);
 }
 
 void AudioServer::load_default_bus_layout() {
@@ -1049,7 +1090,7 @@ void AudioServer::_bind_methods() {
 	ClassDB::bind_method(D_METHOD("get_bus_count"), &AudioServer::get_bus_count);
 
 	ClassDB::bind_method(D_METHOD("remove_bus", "index"), &AudioServer::remove_bus);
-	ClassDB::bind_method(D_METHOD("add_bus", "at_pos"), &AudioServer::add_bus, DEFVAL(-1));
+	ClassDB::bind_method(D_METHOD("add_bus", "at_position"), &AudioServer::add_bus, DEFVAL(-1));
 	ClassDB::bind_method(D_METHOD("move_bus", "index", "to_index"), &AudioServer::move_bus);
 
 	ClassDB::bind_method(D_METHOD("set_bus_name", "bus_idx", "name"), &AudioServer::set_bus_name);
@@ -1071,7 +1112,7 @@ void AudioServer::_bind_methods() {
 	ClassDB::bind_method(D_METHOD("set_bus_bypass_effects", "bus_idx", "enable"), &AudioServer::set_bus_bypass_effects);
 	ClassDB::bind_method(D_METHOD("is_bus_bypassing_effects", "bus_idx"), &AudioServer::is_bus_bypassing_effects);
 
-	ClassDB::bind_method(D_METHOD("add_bus_effect", "bus_idx", "effect", "at_pos"), &AudioServer::add_bus_effect, DEFVAL(-1));
+	ClassDB::bind_method(D_METHOD("add_bus_effect", "bus_idx", "effect", "at_position"), &AudioServer::add_bus_effect, DEFVAL(-1));
 	ClassDB::bind_method(D_METHOD("remove_bus_effect", "bus_idx", "effect_idx"), &AudioServer::remove_bus_effect);
 
 	ClassDB::bind_method(D_METHOD("get_bus_effect_count", "bus_idx"), &AudioServer::get_bus_effect_count);

@@ -175,7 +175,7 @@ void Camera::_get_property_list(List<PropertyInfo> *p_list) const {
 	p_list->push_back(PropertyInfo(Variant::OBJECT, "environment", PROPERTY_HINT_RESOURCE_TYPE, "Environment"));
 	p_list->push_back(PropertyInfo(Variant::REAL, "h_offset"));
 	p_list->push_back(PropertyInfo(Variant::REAL, "v_offset"));
-	p_list->push_back(PropertyInfo(Variant::INT, "doppler/tracking", PROPERTY_HINT_ENUM, "Disabled,Idle,Fixed"));
+	p_list->push_back(PropertyInfo(Variant::INT, "doppler/tracking", PROPERTY_HINT_ENUM, "Disabled,Idle,Physics"));
 }
 
 void Camera::_update_camera() {
@@ -191,11 +191,12 @@ void Camera::_update_camera() {
 		get_viewport()->_camera_transform_changed_notify();
 	*/
 
-	if (is_inside_tree() && is_current()) {
-		get_viewport()->_camera_transform_changed_notify();
-	}
+	if (!is_inside_tree() || get_tree()->is_node_being_edited(this) || !is_current())
+		return;
 
-	if (is_current() && get_world().is_valid()) {
+	get_viewport()->_camera_transform_changed_notify();
+
+	if (get_world().is_valid()) {
 		get_world()->_update_camera(this);
 	}
 }
@@ -507,7 +508,7 @@ void Camera::set_doppler_tracking(DopplerTracking p_tracking) {
 
 	doppler_tracking = p_tracking;
 	if (p_tracking != DOPPLER_TRACKING_DISABLED) {
-		velocity_tracker->set_track_fixed_step(doppler_tracking == DOPPLER_TRACKING_FIXED_STEP);
+		velocity_tracker->set_track_physics_step(doppler_tracking == DOPPLER_TRACKING_PHYSICS_STEP);
 		velocity_tracker->reset(get_global_transform().origin);
 	}
 }
@@ -557,7 +558,7 @@ void Camera::_bind_methods() {
 
 	BIND_ENUM_CONSTANT(DOPPLER_TRACKING_DISABLED)
 	BIND_ENUM_CONSTANT(DOPPLER_TRACKING_IDLE_STEP)
-	BIND_ENUM_CONSTANT(DOPPLER_TRACKING_FIXED_STEP)
+	BIND_ENUM_CONSTANT(DOPPLER_TRACKING_PHYSICS_STEP)
 }
 
 float Camera::get_fov() const {
@@ -649,7 +650,7 @@ Camera::Camera() {
 	current = false;
 	force_change = false;
 	mode = PROJECTION_PERSPECTIVE;
-	set_perspective(65.0, 0.1, 100.0);
+	set_perspective(70.0, 0.05, 100.0);
 	keep_aspect = KEEP_HEIGHT;
 	layers = 0xfffff;
 	v_offset = 0;

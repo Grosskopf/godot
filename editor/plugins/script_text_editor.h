@@ -57,6 +57,17 @@ class ScriptTextEditor : public ScriptEditorBase {
 	int color_line;
 	String color_args;
 
+	struct ColorsCache {
+		Color symbol_color;
+		Color keyword_color;
+		Color basetype_color;
+		Color type_color;
+		Color comment_color;
+		Color string_color;
+	} colors_cache;
+
+	bool theme_loaded;
+
 	enum {
 		EDIT_UNDO,
 		EDIT_REDO,
@@ -80,6 +91,9 @@ class ScriptTextEditor : public ScriptEditorBase {
 		EDIT_TO_UPPERCASE,
 		EDIT_TO_LOWERCASE,
 		EDIT_CAPITALIZE,
+		EDIT_TOGGLE_FOLD_LINE,
+		EDIT_FOLD_ALL_LINES,
+		EDIT_UNFOLD_ALL_LINES,
 		SEARCH_FIND,
 		SEARCH_FIND_NEXT,
 		SEARCH_FIND_PREV,
@@ -101,12 +115,13 @@ protected:
 	void _validate_script();
 	void _code_complete_script(const String &p_code, List<String> *r_options, bool &r_force);
 	void _load_theme_settings();
+	void _set_theme_for_script();
 
 	void _notification(int p_what);
 	static void _bind_methods();
 
 	void _edit_option(int p_op);
-	void _make_context_menu(bool p_selection, bool p_color);
+	void _make_context_menu(bool p_selection, bool p_color, bool p_can_fold, bool p_is_folded);
 	void _text_edit_gui_input(const Ref<InputEvent> &ev);
 	void _color_changed(const Color &p_color);
 

@@ -53,8 +53,9 @@ class CreateDialog : public ConfirmationDialog {
 	LineEdit *search_box;
 	Tree *search_options;
 	String base_type;
-
+	String preferred_search_result_type;
 	EditorHelpBit *help_bit;
+	List<StringName> type_list;
 
 	void _item_selected();
 
@@ -92,6 +93,9 @@ public:
 
 	void set_base_type(const String &p_base);
 	String get_base_type() const;
+
+	void set_preferred_search_result_type(const String &p_preferred_type);
+	String get_preferred_search_result_type();
 
 	void popup_create(bool p_dontclear);
 

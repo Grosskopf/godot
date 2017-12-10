@@ -105,7 +105,7 @@ private:
 	Viewport *root;
 
 	uint64_t tree_version;
-	float fixed_process_time;
+	float physics_process_time;
 	float idle_process_time;
 	bool accept_quit;
 	bool quit_on_go_back;
@@ -124,6 +124,7 @@ private:
 	bool input_handled;
 	Size2 last_screen_size;
 	StringName tree_changed_name;
+	StringName node_added_name;
 	StringName node_removed_name;
 
 	int64_t current_frame;
@@ -147,7 +148,7 @@ private:
 	StretchMode stretch_mode;
 	StretchAspect stretch_aspect;
 	Size2i stretch_min;
-	int stretch_shrink;
+	real_t stretch_shrink;
 
 	void _update_root_rect();
 
@@ -156,7 +157,6 @@ private:
 	Map<UGCall, Vector<Variant> > unique_group_calls;
 	bool ugc_locked;
 	void _flush_ugc();
-	void _flush_transform_notifications();
 
 	_FORCE_INLINE_ void _update_group_order(Group &g);
 	void _update_listener();
@@ -233,6 +233,7 @@ private:
 	void _rpc(Node *p_from, int p_to, bool p_unreliable, bool p_set, const StringName &p_name, const Variant **p_arg, int p_argcount);
 
 	void tree_changed();
+	void node_added(Node *p_node);
 	void node_removed(Node *p_node);
 
 	Group *add_to_group(const StringName &p_group, Node *p_node);
@@ -342,6 +343,8 @@ public:
 	void notify_group(const StringName &p_group, int p_notification);
 	void set_group(const StringName &p_group, const String &p_name, const Variant &p_value);
 
+	void flush_transform_notifications();
+
 	virtual void input_text(const String &p_text);
 	virtual void input_event(const Ref<InputEvent> &p_event);
 	virtual void init();
@@ -358,7 +361,7 @@ public:
 
 	void set_input_as_handled();
 	bool is_input_handled();
-	_FORCE_INLINE_ float get_fixed_process_time() const { return fixed_process_time; }
+	_FORCE_INLINE_ float get_physics_process_time() const { return physics_process_time; }
 	_FORCE_INLINE_ float get_idle_process_time() const { return idle_process_time; }
 
 #ifdef TOOLS_ENABLED
@@ -415,10 +418,10 @@ public:
 	void get_nodes_in_group(const StringName &p_group, List<Node *> *p_list);
 	bool has_group(const StringName &p_identifier) const;
 
-	void set_screen_stretch(StretchMode p_mode, StretchAspect p_aspect, const Size2 p_minsize, int p_shrink = 1);
+	void set_screen_stretch(StretchMode p_mode, StretchAspect p_aspect, const Size2 p_minsize, real_t p_shrink = 1);
 
-//void change_scene(const String& p_path);
-//Node *get_loaded_scene();
+	//void change_scene(const String& p_path);
+	//Node *get_loaded_scene();
 
 #ifdef TOOLS_ENABLED
 	void set_edited_scene_root(Node *p_node);

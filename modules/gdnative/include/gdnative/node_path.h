@@ -45,8 +45,17 @@ typedef struct {
 } godot_node_path;
 #endif
 
+// reduce extern "C" nesting for VS2013
+#ifdef __cplusplus
+}
+#endif
+
 #include <gdnative/gdnative.h>
 #include <gdnative/string.h>
+
+#ifdef __cplusplus
+extern "C" {
+#endif
 
 void GDAPI godot_node_path_new(godot_node_path *r_dest, const godot_string *p_from);
 void GDAPI godot_node_path_new_copy(godot_node_path *r_dest, const godot_node_path *p_src);
@@ -64,7 +73,7 @@ godot_int GDAPI godot_node_path_get_subname_count(const godot_node_path *p_self)
 
 godot_string GDAPI godot_node_path_get_subname(const godot_node_path *p_self, const godot_int p_idx);
 
-godot_string GDAPI godot_node_path_get_property(const godot_node_path *p_self);
+godot_string GDAPI godot_node_path_get_concatenated_subnames(const godot_node_path *p_self);
 
 godot_bool GDAPI godot_node_path_is_empty(const godot_node_path *p_self);
 

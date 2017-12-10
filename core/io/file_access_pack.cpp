@@ -140,17 +140,17 @@ bool PackedSourcePCK::try_open_pack(const String &p_path) {
 	if (magic != 0x43504447) {
 		//maybe at he end.... self contained exe
 		f->seek_end();
-		f->seek(f->get_pos() - 4);
+		f->seek(f->get_position() - 4);
 		magic = f->get_32();
 		if (magic != 0x43504447) {
 
 			memdelete(f);
 			return false;
 		}
-		f->seek(f->get_pos() - 12);
+		f->seek(f->get_position() - 12);
 
 		uint64_t ds = f->get_64();
-		f->seek(f->get_pos() - ds - 8);
+		f->seek(f->get_position() - ds - 8);
 
 		magic = f->get_32();
 		if (magic != 0x43504447) {
@@ -236,7 +236,7 @@ void FileAccessPack::seek_end(int64_t p_position) {
 
 	seek(pf.size + p_position);
 }
-size_t FileAccessPack::get_pos() const {
+size_t FileAccessPack::get_position() const {
 
 	return pos;
 }
@@ -293,6 +293,11 @@ Error FileAccessPack::get_error() const {
 	return OK;
 }
 
+void FileAccessPack::flush() {
+
+	ERR_FAIL();
+}
+
 void FileAccessPack::store_8(uint8_t p_dest) {
 
 	ERR_FAIL();
@@ -308,9 +313,9 @@ bool FileAccessPack::file_exists(const String &p_name) {
 	return false;
 }
 
-FileAccessPack::FileAccessPack(const String &p_path, const PackedData::PackedFile &p_file)
-	: pf(p_file),
-	  f(FileAccess::open(pf.pack, FileAccess::READ)) {
+FileAccessPack::FileAccessPack(const String &p_path, const PackedData::PackedFile &p_file) :
+		pf(p_file),
+		f(FileAccess::open(pf.pack, FileAccess::READ)) {
 	if (!f) {
 		ERR_EXPLAIN("Can't open pack-referenced file: " + String(pf.pack));
 		ERR_FAIL_COND(!f);

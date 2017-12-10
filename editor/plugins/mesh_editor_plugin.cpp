@@ -47,7 +47,7 @@ void MeshEditor::_gui_input(Ref<InputEvent> p_event) {
 
 void MeshEditor::_notification(int p_what) {
 
-	if (p_what == NOTIFICATION_FIXED_PROCESS) {
+	if (p_what == NOTIFICATION_PHYSICS_PROCESS) {
 	}
 
 	if (p_what == NOTIFICATION_READY) {
@@ -95,7 +95,7 @@ void MeshEditor::edit(Ref<Mesh> p_mesh) {
 		rot_y = 0;
 		_update_rotation();
 
-		Rect3 aabb = mesh->get_aabb();
+		AABB aabb = mesh->get_aabb();
 		print_line("aabb: " + aabb);
 		Vector3 ofs = aabb.position + aabb.size * 0.5;
 		float m = aabb.get_longest_axis_size();
@@ -162,7 +162,7 @@ MeshEditor::MeshEditor() {
 
 	HBoxContainer *hb = memnew(HBoxContainer);
 	add_child(hb);
-	hb->set_area_as_parent_rect(2);
+	hb->set_anchors_and_margins_preset(Control::PRESET_WIDE, Control::PRESET_MODE_MINSIZE, 2);
 
 	hb->add_spacer();
 

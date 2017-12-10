@@ -31,40 +31,32 @@
 
 #include "engine.h"
 
-void AudioStreamPlayer::_mix_audio() {
-
-	if (!stream_playback.is_valid()) {
-		return;
-	}
-
-	if (!active) {
-		return;
-	}
-
-	if (setseek >= 0.0) {
-		stream_playback->start(setseek);
-		setseek = -1.0; //reset seek
-	}
+void AudioStreamPlayer::_mix_internal(bool p_fadeout) {
 
 	int bus_index = AudioServer::get_singleton()->thread_find_bus_index(bus);
 
 	//get data
-	AudioFrame *buffer = mix_buffer.ptr();
+	AudioFrame *buffer = mix_buffer.ptrw();
 	int buffer_size = mix_buffer.size();
+
+	if (p_fadeout) {
+		buffer_size = MIN(buffer_size, 16); //short fadeout ramp
+	}
 
 	//mix
 	stream_playback->mix(buffer, 1.0, buffer_size);
 
 	//multiply volume interpolating to avoid clicks if this changes
+	float target_volume = p_fadeout ? -80.0 : volume_db;
 	float vol = Math::db2linear(mix_volume_db);
-	float vol_inc = (Math::db2linear(volume_db) - vol) / float(buffer_size);
+	float vol_inc = (Math::db2linear(target_volume) - vol) / float(buffer_size);
 
 	for (int i = 0; i < buffer_size; i++) {
 		buffer[i] *= vol;
 		vol += vol_inc;
 	}
 	//set volume for next mix
-	mix_volume_db = volume_db;
+	mix_volume_db = target_volume;
 
 	AudioFrame *targets[4] = { NULL, NULL, NULL, NULL };
 
@@ -95,6 +87,30 @@ void AudioStreamPlayer::_mix_audio() {
 	}
 }
 
+void AudioStreamPlayer::_mix_audio() {
+
+	if (!stream_playback.is_valid()) {
+		return;
+	}
+
+	if (!active) {
+		return;
+	}
+
+	if (setseek >= 0.0) {
+		if (stream_playback->is_playing()) {
+
+			//fade out to avoid pops
+			_mix_internal(true);
+		}
+		stream_playback->start(setseek);
+		setseek = -1.0; //reset seek
+		mix_volume_db = volume_db; //reset ramp
+	}
+
+	_mix_internal(false);
+}
+
 void AudioStreamPlayer::_notification(int p_what) {
 
 	if (p_what == NOTIFICATION_ENTER_TREE) {
@@ -122,7 +138,6 @@ void AudioStreamPlayer::_notification(int p_what) {
 
 void AudioStreamPlayer::set_stream(Ref<AudioStream> p_stream) {
 
-	ERR_FAIL_COND(!p_stream.is_valid());
 	AudioServer::get_singleton()->lock();
 
 	mix_buffer.resize(AudioServer::get_singleton()->thread_get_mix_buffer_size());
@@ -134,12 +149,14 @@ void AudioStreamPlayer::set_stream(Ref<AudioStream> p_stream) {
 		setseek = -1;
 	}
 
-	stream = p_stream;
-	stream_playback = p_stream->instance_playback();
+	if (p_stream.is_valid()) {
+		stream = p_stream;
+		stream_playback = p_stream->instance_playback();
+	}
 
 	AudioServer::get_singleton()->unlock();
 
-	if (stream_playback.is_null()) {
+	if (p_stream.is_valid() && stream_playback.is_null()) {
 		stream.unref();
 		ERR_FAIL_COND(stream_playback.is_null());
 	}
@@ -162,7 +179,7 @@ float AudioStreamPlayer::get_volume_db() const {
 void AudioStreamPlayer::play(float p_from_pos) {
 
 	if (stream_playback.is_valid()) {
-		mix_volume_db = volume_db; //reset volume ramp
+		//mix_volume_db = volume_db; do not reset volume ramp here, can cause clicks
 		setseek = p_from_pos;
 		active = true;
 		set_process_internal(true);
@@ -193,10 +210,10 @@ bool AudioStreamPlayer::is_playing() const {
 	return false;
 }
 
-float AudioStreamPlayer::get_pos() {
+float AudioStreamPlayer::get_playback_position() {
 
 	if (stream_playback.is_valid()) {
-		return stream_playback->get_pos();
+		return stream_playback->get_playback_position();
 	}
 
 	return 0;
@@ -279,12 +296,12 @@ void AudioStreamPlayer::_bind_methods() {
 	ClassDB::bind_method(D_METHOD("set_volume_db", "volume_db"), &AudioStreamPlayer::set_volume_db);
 	ClassDB::bind_method(D_METHOD("get_volume_db"), &AudioStreamPlayer::get_volume_db);
 
-	ClassDB::bind_method(D_METHOD("play", "from_pos"), &AudioStreamPlayer::play, DEFVAL(0.0));
-	ClassDB::bind_method(D_METHOD("seek", "to_pos"), &AudioStreamPlayer::seek);
+	ClassDB::bind_method(D_METHOD("play", "from_position"), &AudioStreamPlayer::play, DEFVAL(0.0));
+	ClassDB::bind_method(D_METHOD("seek", "to_position"), &AudioStreamPlayer::seek);
 	ClassDB::bind_method(D_METHOD("stop"), &AudioStreamPlayer::stop);
 
 	ClassDB::bind_method(D_METHOD("is_playing"), &AudioStreamPlayer::is_playing);
-	ClassDB::bind_method(D_METHOD("get_pos"), &AudioStreamPlayer::get_pos);
+	ClassDB::bind_method(D_METHOD("get_playback_position"), &AudioStreamPlayer::get_playback_position);
 
 	ClassDB::bind_method(D_METHOD("set_bus", "bus"), &AudioStreamPlayer::set_bus);
 	ClassDB::bind_method(D_METHOD("get_bus"), &AudioStreamPlayer::get_bus);

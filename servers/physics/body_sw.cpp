@@ -45,8 +45,9 @@ void BodySW::_update_transform_dependant() {
 	// update inertia tensor
 	Basis tb = principal_inertia_axes;
 	Basis tbt = tb.transposed();
-	tb.scale(_inv_inertia);
-	_inv_inertia_tensor = tb * tbt;
+	Basis diag;
+	diag.scale(_inv_inertia);
+	_inv_inertia_tensor = tb * diag * tbt;
 }
 
 void BodySW::update_inertias() {
@@ -558,6 +559,20 @@ void BodySW::integrate_velocities(real_t p_step) {
 	if (fi_callback)
 		get_space()->body_add_to_state_query_list(&direct_state_query_list);
 
+	//apply axis lock
+	if (locked_axis[0] || locked_axis[1] || locked_axis[2]) {
+		for (int i = 0; i < 3; i++) {
+			if (locked_axis[i]) {
+				linear_velocity[i] = 0;
+				biased_linear_velocity[i] = 0;
+				new_transform.origin[i] = get_transform().origin[i];
+			} else {
+				angular_velocity[i] = 0;
+				biased_angular_velocity[i] = 0;
+			}
+		}
+	}
+
 	if (mode == PhysicsServer::BODY_MODE_KINEMATIC) {
 
 		_set_transform(new_transform, false);
@@ -566,22 +581,6 @@ void BodySW::integrate_velocities(real_t p_step) {
 			set_active(false); //stopped moving, deactivate
 
 		return;
-	}
-
-	//apply axis lock
-	if (axis_lock != PhysicsServer::BODY_AXIS_LOCK_DISABLED) {
-
-		int axis = axis_lock - 1;
-		for (int i = 0; i < 3; i++) {
-			if (i == axis) {
-				linear_velocity[i] = 0;
-				biased_linear_velocity[i] = 0;
-			} else {
-
-				angular_velocity[i] = 0;
-				biased_angular_velocity[i] = 0;
-			}
-		}
 	}
 
 	Vector3 total_angular_velocity = angular_velocity + biased_angular_velocity;
@@ -735,13 +734,21 @@ void BodySW::set_force_integration_callback(ObjectID p_id, const StringName &p_m
 	}
 }
 
-BodySW::BodySW()
-	: CollisionObjectSW(TYPE_BODY), active_list(this), inertia_update_list(this), direct_state_query_list(this) {
+void BodySW::set_kinematic_margin(real_t p_margin) {
+	kinematic_safe_margin = p_margin;
+}
+
+BodySW::BodySW() :
+		CollisionObjectSW(TYPE_BODY),
+		active_list(this),
+		inertia_update_list(this),
+		direct_state_query_list(this) {
 
 	mode = PhysicsServer::BODY_MODE_RIGID;
 	active = true;
 
 	mass = 1;
+	kinematic_safe_margin = 0.01;
 	//_inv_inertia=Transform();
 	_inv_mass = 1;
 	bounce = 0;
@@ -766,7 +773,6 @@ BodySW::BodySW()
 	continuous_cd = false;
 	can_sleep = false;
 	fi_callback = NULL;
-	axis_lock = PhysicsServer::BODY_AXIS_LOCK_DISABLED;
 }
 
 BodySW::~BodySW() {

@@ -418,6 +418,7 @@ private:
 		Ref<Texture> arrow_collapsed;
 		Ref<Texture> arrow;
 		Ref<Texture> select_arrow;
+		Ref<Texture> select_option;
 		Ref<Texture> updown;
 
 		Color font_color;
@@ -525,9 +526,9 @@ protected:
 public:
 	virtual String get_tooltip(const Point2 &p_pos) const;
 
-	TreeItem *get_item_at_pos(const Point2 &p_pos) const;
-	int get_column_at_pos(const Point2 &p_pos) const;
-	int get_drop_section_at_pos(const Point2 &p_pos) const;
+	TreeItem *get_item_at_position(const Point2 &p_pos) const;
+	int get_column_at_position(const Point2 &p_pos) const;
+	int get_drop_section_at_position(const Point2 &p_pos) const;
 
 	void clear();
 
@@ -545,6 +546,8 @@ public:
 	int get_selected_column() const;
 	int get_pressed_button() const;
 	void set_select_mode(SelectMode p_mode);
+	void deselect_all();
+	bool is_anything_selected();
 
 	void set_columns(int p_columns);
 	int get_columns() const;
@@ -569,6 +572,7 @@ public:
 	TreeItem *search_item_text(const String &p_find, int *r_col = NULL, bool p_selectable = false);
 
 	Point2 get_scroll() const;
+	void scroll_to_item(TreeItem *p_item);
 
 	void set_cursor_can_exit_tree(bool p_enable);
 	bool can_cursor_exit_tree() const;

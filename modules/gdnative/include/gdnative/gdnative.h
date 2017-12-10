@@ -34,29 +34,20 @@
 extern "C" {
 #endif
 
-#ifdef GDAPI_BUILT_IN
-#define GDAPI_EXPORT
-#endif
-
 #ifdef _WIN32
-#if defined(GDAPI_EXPORT)
 #define GDCALLINGCONV
-#define GDAPI __declspec(dllexport) GDCALLINGCONV
-#else
-#define GDCALLINGCONV
-#define GDAPI __declspec(dllimport) GDCALLINGCONV
-#endif
+#define GDAPI GDCALLINGCONV
 #elif defined(__APPLE__)
 #include "TargetConditionals.h"
 #if TARGET_OS_IPHONE
-#define GDCALLINGCONV
-#define GDAPI
+#define GDCALLINGCONV __attribute__((visibility("default")))
+#define GDAPI GDCALLINGCONV
 #elif TARGET_OS_MAC
 #define GDCALLINGCONV __attribute__((sysv_abi))
 #define GDAPI GDCALLINGCONV
 #endif
 #else
-#define GDCALLINGCONV __attribute__((sysv_abi, visibility("default")))
+#define GDCALLINGCONV __attribute__((sysv_abi))
 #define GDAPI GDCALLINGCONV
 #endif
 
@@ -103,7 +94,7 @@ typedef enum {
 	GODOT_ERR_CANT_CONNECT, // (25)
 	GODOT_ERR_CANT_RESOLVE,
 	GODOT_ERR_CONNECTION_ERROR,
-	GODOT_ERR_CANT_AQUIRE_RESOURCE,
+	GODOT_ERR_CANT_ACQUIRE_RESOURCE,
 	GODOT_ERR_CANT_FORK,
 	GODOT_ERR_INVALID_DATA, ///< Data passed is invalid	(30)
 	GODOT_ERR_INVALID_PARAMETER, ///< Parameter passed is invalid
@@ -124,8 +115,6 @@ typedef enum {
 	GODOT_ERR_HELP, ///< user requested help!!
 	GODOT_ERR_BUG, ///< a bug in the software certainly happened, due to a double check failing or unexpected behavior.
 	GODOT_ERR_PRINTER_ON_FIRE, /// the parallel port printer is engulfed in flames
-	GODOT_ERR_OMFG_THIS_IS_VERY_VERY_BAD, ///< shit happens, has never been used, though
-	GODOT_ERR_WTF = GODOT_ERR_OMFG_THIS_IS_VERY_VERY_BAD ///< short version of the above
 } godot_error;
 
 ////// bool
@@ -149,6 +138,10 @@ typedef void godot_object;
 /////// String
 
 #include <gdnative/string.h>
+
+/////// String name
+
+#include <gdnative/string_name.h>
 
 ////// Vector2
 
@@ -174,9 +167,9 @@ typedef void godot_object;
 
 #include <gdnative/quat.h>
 
-/////// Rect3
+/////// AABB
 
-#include <gdnative/rect3.h>
+#include <gdnative/aabb.h>
 
 /////// Basis
 
@@ -234,12 +227,31 @@ void GDAPI godot_method_bind_ptrcall(godot_method_bind *p_method_bind, godot_obj
 godot_variant GDAPI godot_method_bind_call(godot_method_bind *p_method_bind, godot_object *p_instance, const godot_variant **p_args, const int p_arg_count, godot_variant_call_error *p_call_error);
 ////// Script API
 
+typedef struct godot_gdnative_api_version {
+	unsigned int major;
+	unsigned int minor;
+} godot_gdnative_api_version;
+
+typedef struct godot_gdnative_api_struct godot_gdnative_api_struct;
+
+struct godot_gdnative_api_struct {
+	unsigned int type;
+	godot_gdnative_api_version version;
+	const godot_gdnative_api_struct *next;
+};
+
+#define GDNATIVE_VERSION_COMPATIBLE(want, have) (want.major == have.major && want.minor <= have.minor)
+
 typedef struct {
 	godot_bool in_editor;
 	uint64_t core_api_hash;
 	uint64_t editor_api_hash;
 	uint64_t no_api_hash;
+	void (*report_version_mismatch)(const godot_object *p_library, const char *p_what, godot_gdnative_api_version p_want, godot_gdnative_api_version p_have);
+	void (*report_loading_error)(const godot_object *p_library, const char *p_what);
 	godot_object *gd_native_library; // pointer to GDNativeLibrary that is being initialized
+	const struct godot_gdnative_core_api_struct *api_struct;
+	const godot_string *active_library_path;
 } godot_gdnative_init_options;
 
 typedef struct {
@@ -256,9 +268,12 @@ godot_dictionary GDAPI godot_get_global_constants();
 ////// GDNative procedure types
 typedef void (*godot_gdnative_init_fn)(godot_gdnative_init_options *);
 typedef void (*godot_gdnative_terminate_fn)(godot_gdnative_terminate_options *);
-typedef godot_variant (*godot_gdnative_procedure_fn)(void *, godot_array *);
+typedef godot_variant (*godot_gdnative_procedure_fn)(godot_array *);
 
 ////// System Functions
+
+typedef godot_variant (*native_call_cb)(void *, godot_array *);
+void GDAPI godot_register_native_call_type(const char *p_call_type, native_call_cb p_callback);
 
 //using these will help Godot track how much memory is in use in debug mode
 void GDAPI *godot_alloc(int p_bytes);

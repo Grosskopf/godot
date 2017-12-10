@@ -254,6 +254,9 @@ const ShaderLanguage::KeyWord ShaderLanguage::keyword_list[] = {
 	{ TK_TYPE_ISAMPLER2D, "isampler2D" },
 	{ TK_TYPE_USAMPLER2D, "usampler2D" },
 	{ TK_TYPE_SAMPLERCUBE, "samplerCube" },
+	{ TK_INTERPOLATION_FLAT, "flat" },
+	{ TK_INTERPOLATION_NO_PERSPECTIVE, "noperspective" },
+	{ TK_INTERPOLATION_SMOOTH, "smooth" },
 	{ TK_PRECISION_LOW, "lowp" },
 	{ TK_PRECISION_MID, "mediump" },
 	{ TK_PRECISION_HIGH, "highp" },
@@ -267,6 +270,7 @@ const ShaderLanguage::KeyWord ShaderLanguage::keyword_list[] = {
 	{ TK_CF_BREAK, "break" },
 	{ TK_CF_CONTINUE, "continue" },
 	{ TK_CF_RETURN, "return" },
+	{ TK_CF_DISCARD, "discard" },
 	{ TK_UNIFORM, "uniform" },
 	{ TK_VARYING, "varying" },
 	{ TK_ARG_IN, "in" },
@@ -655,6 +659,24 @@ bool ShaderLanguage::is_token_datatype(TokenType p_type) {
 ShaderLanguage::DataType ShaderLanguage::get_token_datatype(TokenType p_type) {
 
 	return DataType(p_type - TK_TYPE_VOID);
+}
+
+bool ShaderLanguage::is_token_interpolation(TokenType p_type) {
+
+	return (
+			p_type == TK_INTERPOLATION_FLAT ||
+			p_type == TK_INTERPOLATION_NO_PERSPECTIVE ||
+			p_type == TK_INTERPOLATION_SMOOTH);
+}
+
+ShaderLanguage::DataInterpolation ShaderLanguage::get_token_interpolation(TokenType p_type) {
+
+	if (p_type == TK_INTERPOLATION_FLAT)
+		return INTERPOLATION_FLAT;
+	else if (p_type == TK_INTERPOLATION_NO_PERSPECTIVE)
+		return INTERPOLATION_NO_PERSPECTIVE;
+	else
+		return INTERPOLATION_SMOOTH;
 }
 
 bool ShaderLanguage::is_token_precision(TokenType p_type) {
@@ -1351,15 +1373,54 @@ const ShaderLanguage::BuiltinFuncDef ShaderLanguage::builtin_func_defs[] = {
 
 	//builtins - trigonometry
 	{ "sin", TYPE_FLOAT, { TYPE_FLOAT, TYPE_VOID } },
+	{ "sin", TYPE_VEC2, { TYPE_VEC2, TYPE_VOID } },
+	{ "sin", TYPE_VEC3, { TYPE_VEC3, TYPE_VOID } },
+	{ "sin", TYPE_VEC4, { TYPE_VEC4, TYPE_VOID } },
+
 	{ "cos", TYPE_FLOAT, { TYPE_FLOAT, TYPE_VOID } },
+	{ "cos", TYPE_VEC2, { TYPE_VEC2, TYPE_VOID } },
+	{ "cos", TYPE_VEC3, { TYPE_VEC3, TYPE_VOID } },
+	{ "cos", TYPE_VEC4, { TYPE_VEC4, TYPE_VOID } },
+
 	{ "tan", TYPE_FLOAT, { TYPE_FLOAT, TYPE_VOID } },
+	{ "tan", TYPE_VEC2, { TYPE_VEC2, TYPE_VOID } },
+	{ "tan", TYPE_VEC3, { TYPE_VEC3, TYPE_VOID } },
+	{ "tan", TYPE_VEC4, { TYPE_VEC4, TYPE_VOID } },
+
 	{ "asin", TYPE_FLOAT, { TYPE_FLOAT, TYPE_VOID } },
+	{ "asin", TYPE_VEC2, { TYPE_VEC2, TYPE_VOID } },
+	{ "asin", TYPE_VEC3, { TYPE_VEC3, TYPE_VOID } },
+	{ "asin", TYPE_VEC4, { TYPE_VEC4, TYPE_VOID } },
+
 	{ "acos", TYPE_FLOAT, { TYPE_FLOAT, TYPE_VOID } },
+	{ "acos", TYPE_VEC2, { TYPE_VEC2, TYPE_VOID } },
+	{ "acos", TYPE_VEC3, { TYPE_VEC3, TYPE_VOID } },
+	{ "acos", TYPE_VEC4, { TYPE_VEC4, TYPE_VOID } },
+
 	{ "atan", TYPE_FLOAT, { TYPE_FLOAT, TYPE_VOID } },
-	{ "atan2", TYPE_FLOAT, { TYPE_FLOAT, TYPE_FLOAT, TYPE_VOID } },
+	{ "atan", TYPE_VEC2, { TYPE_VEC2, TYPE_VOID } },
+	{ "atan", TYPE_VEC3, { TYPE_VEC3, TYPE_VOID } },
+	{ "atan", TYPE_VEC4, { TYPE_VEC4, TYPE_VOID } },
+	{ "atan", TYPE_FLOAT, { TYPE_FLOAT, TYPE_FLOAT, TYPE_VOID } },
+	{ "atan", TYPE_VEC2, { TYPE_VEC2, TYPE_VEC2, TYPE_VOID } },
+	{ "atan", TYPE_VEC3, { TYPE_VEC3, TYPE_VEC3, TYPE_VOID } },
+	{ "atan", TYPE_VEC4, { TYPE_VEC4, TYPE_VEC4, TYPE_VOID } },
+
 	{ "sinh", TYPE_FLOAT, { TYPE_FLOAT, TYPE_VOID } },
+	{ "sinh", TYPE_VEC2, { TYPE_VEC2, TYPE_VOID } },
+	{ "sinh", TYPE_VEC3, { TYPE_VEC3, TYPE_VOID } },
+	{ "sinh", TYPE_VEC4, { TYPE_VEC4, TYPE_VOID } },
+
 	{ "cosh", TYPE_FLOAT, { TYPE_FLOAT, TYPE_VOID } },
+	{ "cosh", TYPE_VEC2, { TYPE_VEC2, TYPE_VOID } },
+	{ "cosh", TYPE_VEC3, { TYPE_VEC3, TYPE_VOID } },
+	{ "cosh", TYPE_VEC4, { TYPE_VEC4, TYPE_VOID } },
+
 	{ "tanh", TYPE_FLOAT, { TYPE_FLOAT, TYPE_VOID } },
+	{ "tanh", TYPE_VEC2, { TYPE_VEC2, TYPE_VOID } },
+	{ "tanh", TYPE_VEC3, { TYPE_VEC3, TYPE_VOID } },
+	{ "tanh", TYPE_VEC4, { TYPE_VEC4, TYPE_VOID } },
+
 	//builtins - exponential
 	{ "pow", TYPE_FLOAT, { TYPE_FLOAT, TYPE_FLOAT, TYPE_VOID } },
 	{ "pow", TYPE_VEC2, { TYPE_VEC2, TYPE_VEC2, TYPE_VOID } },
@@ -1377,6 +1438,10 @@ const ShaderLanguage::BuiltinFuncDef ShaderLanguage::builtin_func_defs[] = {
 	{ "sqrt", TYPE_VEC2, { TYPE_VEC2, TYPE_VOID } },
 	{ "sqrt", TYPE_VEC3, { TYPE_VEC3, TYPE_VOID } },
 	{ "sqrt", TYPE_VEC4, { TYPE_VEC4, TYPE_VOID } },
+	{ "inversesqrt", TYPE_FLOAT, { TYPE_FLOAT, TYPE_VOID } },
+	{ "inversesqrt", TYPE_VEC2, { TYPE_VEC2, TYPE_VOID } },
+	{ "inversesqrt", TYPE_VEC3, { TYPE_VEC3, TYPE_VOID } },
+	{ "inversesqrt", TYPE_VEC4, { TYPE_VEC4, TYPE_VOID } },
 	//builtins - common
 	{ "abs", TYPE_FLOAT, { TYPE_FLOAT, TYPE_VOID } },
 	{ "abs", TYPE_VEC2, { TYPE_VEC2, TYPE_VOID } },
@@ -1739,8 +1804,6 @@ const ShaderLanguage::BuiltinFuncDef ShaderLanguage::builtin_func_defs[] = {
 	{ "textureGrad", TYPE_IVEC4, { TYPE_ISAMPLER2D, TYPE_VEC2, TYPE_VEC2, TYPE_VEC2, TYPE_VOID } },
 	{ "textureGrad", TYPE_UVEC4, { TYPE_USAMPLER2D, TYPE_VEC2, TYPE_VEC2, TYPE_VEC2, TYPE_VOID } },
 	{ "textureGrad", TYPE_VEC4, { TYPE_SAMPLERCUBE, TYPE_VEC3, TYPE_VEC3, TYPE_VEC3, TYPE_VOID } },
-
-	{ "textureScreen", TYPE_VEC4, { TYPE_VEC2, TYPE_VOID } },
 
 	{ "dFdx", TYPE_FLOAT, { TYPE_FLOAT, TYPE_VOID } },
 	{ "dFdx", TYPE_VEC2, { TYPE_VEC2, TYPE_VOID } },
@@ -2583,6 +2646,8 @@ ShaderLanguage::Node *ShaderLanguage::_parse_expression(BlockNode *p_block, cons
 			} else if (tk.type == TK_BRACKET_OPEN) {
 
 				Node *index = _parse_and_reduce_expression(p_block, p_builtin_types);
+				if (!index)
+					return NULL;
 
 				if (index->get_datatype() != TYPE_INT && index->get_datatype() != TYPE_UINT) {
 					_set_error("Only integer datatypes are allowed for indexing");
@@ -3532,10 +3597,16 @@ Error ShaderLanguage::_parse_shader(const Map<StringName, FunctionInfo> &p_funct
 
 				bool uniform = tk.type == TK_UNIFORM;
 				DataPrecision precision = PRECISION_DEFAULT;
+				DataInterpolation interpolation = INTERPOLATION_SMOOTH;
 				DataType type;
 				StringName name;
 
 				tk = _get_token();
+				if (is_token_interpolation(tk.type)) {
+					interpolation = get_token_interpolation(tk.type);
+					tk = _get_token();
+				}
+
 				if (is_token_precision(tk.type)) {
 					precision = get_token_precision(tk.type);
 					tk = _get_token();
@@ -3601,7 +3672,7 @@ Error ShaderLanguage::_parse_shader(const Map<StringName, FunctionInfo> &p_funct
 
 						uniform.default_value.resize(cn->values.size());
 
-						if (!convert_constant(cn, uniform.type, uniform.default_value.ptr())) {
+						if (!convert_constant(cn, uniform.type, uniform.default_value.ptrw())) {
 							_set_error("Can't convert constant to " + get_datatype_name(uniform.type));
 							return ERR_PARSE_ERROR;
 						}
@@ -3733,6 +3804,7 @@ Error ShaderLanguage::_parse_shader(const Map<StringName, FunctionInfo> &p_funct
 					ShaderNode::Varying varying;
 					varying.type = type;
 					varying.precission = precision;
+					varying.interpolation = interpolation;
 					shader->varyings[name] = varying;
 
 					tk = _get_token();
@@ -3799,6 +3871,10 @@ Error ShaderLanguage::_parse_shader(const Map<StringName, FunctionInfo> &p_funct
 				func_node->name = name;
 				func_node->return_type = type;
 				func_node->return_precision = precision;
+
+				if (p_functions.has(name)) {
+					func_node->can_discard = p_functions[name].can_discard;
+				}
 
 				func_node->body = alloc_node<BlockNode>();
 				func_node->body->parent_function = func_node;

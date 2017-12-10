@@ -45,10 +45,19 @@ typedef struct {
 } godot_transform;
 #endif
 
+// reduce extern "C" nesting for VS2013
+#ifdef __cplusplus
+}
+#endif
+
 #include <gdnative/basis.h>
 #include <gdnative/gdnative.h>
 #include <gdnative/variant.h>
 #include <gdnative/vector3.h>
+
+#ifdef __cplusplus
+extern "C" {
+#endif
 
 void GDAPI godot_transform_new_with_axis_origin(godot_transform *r_dest, const godot_vector3 *p_x_axis, const godot_vector3 *p_y_axis, const godot_vector3 *p_z_axis, const godot_vector3 *p_origin);
 void GDAPI godot_transform_new(godot_transform *r_dest, const godot_basis *p_basis, const godot_vector3 *p_origin);
@@ -89,9 +98,9 @@ godot_vector3 GDAPI godot_transform_xform_vector3(const godot_transform *p_self,
 
 godot_vector3 GDAPI godot_transform_xform_inv_vector3(const godot_transform *p_self, const godot_vector3 *p_v);
 
-godot_rect3 GDAPI godot_transform_xform_rect3(const godot_transform *p_self, const godot_rect3 *p_v);
+godot_aabb GDAPI godot_transform_xform_aabb(const godot_transform *p_self, const godot_aabb *p_v);
 
-godot_rect3 GDAPI godot_transform_xform_inv_rect3(const godot_transform *p_self, const godot_rect3 *p_v);
+godot_aabb GDAPI godot_transform_xform_inv_aabb(const godot_transform *p_self, const godot_aabb *p_v);
 
 #ifdef __cplusplus
 }

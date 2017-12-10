@@ -42,7 +42,7 @@ class AnimationTreePlayer : public Node {
 
 public:
 	enum AnimationProcessMode {
-		ANIMATION_PROCESS_FIXED,
+		ANIMATION_PROCESS_PHYSICS,
 		ANIMATION_PROCESS_IDLE,
 	};
 
@@ -78,14 +78,14 @@ private:
 	struct TrackKey {
 
 		uint32_t id;
-		StringName property;
+		StringName subpath_concatenated;
 		int bone_idx;
 
 		inline bool operator<(const TrackKey &p_right) const {
 
 			if (id == p_right.id) {
 				if (bone_idx == p_right.bone_idx) {
-					return property < p_right.property;
+					return subpath_concatenated < p_right.subpath_concatenated;
 				} else
 					return bone_idx < p_right.bone_idx;
 			} else
@@ -99,7 +99,7 @@ private:
 		Spatial *spatial;
 		Skeleton *skeleton;
 		int bone_idx;
-		StringName property;
+		Vector<StringName> subpath;
 
 		Vector3 loc;
 		Quat rot;
@@ -417,10 +417,10 @@ public:
 	void transition_node_set_current(const StringName &p_node, int p_current);
 	int transition_node_get_current(const StringName &p_node) const;
 
-	void node_set_pos(const StringName &p_node, const Vector2 &p_pos); //for display
+	void node_set_position(const StringName &p_node, const Vector2 &p_pos); //for display
 
 	/* GETS */
-	Point2 node_get_pos(const StringName &p_node) const; //for display
+	Point2 node_get_position(const StringName &p_node) const; //for display
 
 	NodeType node_get_type(const StringName &p_node) const;
 

@@ -72,19 +72,19 @@ class ScriptEditorDebugger : public Control {
 	Button *le_set;
 	Button *le_clear;
 
-	Tree *inspect_scene_tree;
-	HSplitContainer *inspect_info;
-	PropertyEditor *inspect_properties;
+	bool updating_scene_tree;
 	float inspect_scene_tree_timeout;
 	float inspect_edited_object_timeout;
+	bool auto_switch_remote_scene_tree;
 	ObjectID inspected_object_id;
-	ScriptEditorDebuggerInspectedObject *inspected_object;
-	bool updating_scene_tree;
+	ScriptEditorDebuggerVariables *variables;
+	Map<ObjectID, ScriptEditorDebuggerInspectedObject *> remote_objects;
 	Set<ObjectID> unfold_cache;
 
 	HSplitContainer *error_split;
 	ItemList *error_list;
 	ItemList *error_stack;
+	Tree *inspect_scene_tree;
 
 	int error_count;
 	int last_error_count;
@@ -96,7 +96,6 @@ class ScriptEditorDebugger : public Control {
 	TabContainer *tabs;
 
 	Label *reason;
-	ScriptEditorDebuggerVariables *variables;
 
 	Button *step;
 	Button *next;
@@ -142,7 +141,7 @@ class ScriptEditorDebugger : public Control {
 	bool live_debug;
 
 	void _performance_draw();
-	void _performance_select(Object *, int, bool);
+	void _performance_select();
 	void _stack_dump_frame_selected();
 	void _output_clear();
 
@@ -166,9 +165,6 @@ class ScriptEditorDebugger : public Control {
 	void _method_changed(Object *p_base, const StringName &p_name, VARIANT_ARG_DECLARE);
 	void _property_changed(Object *p_base, const StringName &p_property, const Variant &p_value);
 
-	static void _method_changeds(void *p_ud, Object *p_base, const StringName &p_name, VARIANT_ARG_DECLARE);
-	static void _property_changeds(void *p_ud, Object *p_base, const StringName &p_property, const Variant &p_value);
-
 	void _error_selected(int p_idx);
 	void _error_stack_selected(int p_idx);
 
@@ -176,6 +172,9 @@ class ScriptEditorDebugger : public Control {
 	void _profiler_seeked();
 
 	void _paused();
+
+	void _set_remote_object(ObjectID p_id, ScriptEditorDebuggerInspectedObject *p_obj);
+	void _clear_remote_objects();
 
 protected:
 	void _notification(int p_what);
@@ -195,6 +194,9 @@ public:
 	String get_var_value(const String &p_var) const;
 
 	void set_live_debugging(bool p_enable);
+
+	static void _method_changeds(void *p_ud, Object *p_base, const StringName &p_name, VARIANT_ARG_DECLARE);
+	static void _property_changeds(void *p_ud, Object *p_base, const StringName &p_property, const Variant &p_value);
 
 	void live_debug_create_node(const NodePath &p_parent, const String &p_type, const String &p_name);
 	void live_debug_instance_node(const NodePath &p_parent, const String &p_path, const String &p_name);

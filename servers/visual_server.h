@@ -60,7 +60,7 @@ protected:
 	RID white_texture;
 	RID test_material;
 
-	Error _surface_set_data(Array p_arrays, uint32_t p_format, uint32_t *p_offsets, uint32_t p_stride, PoolVector<uint8_t> &r_vertex_array, int p_vertex_array_len, PoolVector<uint8_t> &r_index_array, int p_index_array_len, Rect3 &r_aabb, Vector<Rect3> r_bone_aabb);
+	Error _surface_set_data(Array p_arrays, uint32_t p_format, uint32_t *p_offsets, uint32_t p_stride, PoolVector<uint8_t> &r_vertex_array, int p_vertex_array_len, PoolVector<uint8_t> &r_index_array, int p_index_array_len, AABB &r_aabb, Vector<AABB> r_bone_aabb);
 
 	static VisualServer *(*create_func)();
 	static void _bind_methods();
@@ -85,7 +85,7 @@ public:
 	enum TextureFlags {
 		TEXTURE_FLAG_MIPMAPS = 1, /// Enable automatic mipmap generation - when available
 		TEXTURE_FLAG_REPEAT = 2, /// Repeat texture (Tiling), otherwise Clamping
-		TEXTURE_FLAG_FILTER = 4, /// Create texure with linear (or available) filter
+		TEXTURE_FLAG_FILTER = 4, /// Create texture with linear (or available) filter
 		TEXTURE_FLAG_ANISOTROPIC_FILTER = 8,
 		TEXTURE_FLAG_CONVERT_TO_LINEAR = 16,
 		TEXTURE_FLAG_MIRRORED_REPEAT = 32, /// Repeat texture, with alternate sections mirrored
@@ -137,8 +137,11 @@ public:
 	};
 
 	virtual void texture_debug_usage(List<TextureInfo> *r_info) = 0;
+	Array _texture_debug_usage_bind();
 
 	virtual void textures_keep_original(bool p_enable) = 0;
+
+	virtual void texture_set_proxy(RID p_proxy, RID p_base) = 0;
 
 	/* SKY API */
 
@@ -160,6 +163,7 @@ public:
 	virtual void shader_set_code(RID p_shader, const String &p_code) = 0;
 	virtual String shader_get_code(RID p_shader) const = 0;
 	virtual void shader_get_param_list(RID p_shader, List<PropertyInfo> *p_param_list) const = 0;
+	Array _shader_get_param_list_bind(RID p_shader) const;
 
 	virtual void shader_set_default_texture_param(RID p_shader, const StringName &p_name, RID p_texture) = 0;
 	virtual RID shader_get_default_texture_param(RID p_shader, const StringName &p_name) const = 0;
@@ -225,6 +229,7 @@ public:
 
 		ARRAY_FLAG_USE_2D_VERTICES = ARRAY_COMPRESS_INDEX << 1,
 		ARRAY_FLAG_USE_16_BIT_BONES = ARRAY_COMPRESS_INDEX << 2,
+		ARRAY_FLAG_USE_DYNAMIC_UPDATE = ARRAY_COMPRESS_INDEX << 3,
 
 		ARRAY_COMPRESS_DEFAULT = ARRAY_COMPRESS_VERTEX | ARRAY_COMPRESS_NORMAL | ARRAY_COMPRESS_TANGENT | ARRAY_COMPRESS_COLOR | ARRAY_COMPRESS_TEX_UV | ARRAY_COMPRESS_TEX_UV2 | ARRAY_COMPRESS_WEIGHTS
 
@@ -244,7 +249,7 @@ public:
 	virtual RID mesh_create() = 0;
 
 	virtual void mesh_add_surface_from_arrays(RID p_mesh, PrimitiveType p_primitive, const Array &p_arrays, const Array &p_blend_shapes = Array(), uint32_t p_compress_format = ARRAY_COMPRESS_DEFAULT);
-	virtual void mesh_add_surface(RID p_mesh, uint32_t p_format, PrimitiveType p_primitive, const PoolVector<uint8_t> &p_array, int p_vertex_count, const PoolVector<uint8_t> &p_index_array, int p_index_count, const Rect3 &p_aabb, const Vector<PoolVector<uint8_t> > &p_blend_shapes = Vector<PoolVector<uint8_t> >(), const Vector<Rect3> &p_bone_aabbs = Vector<Rect3>()) = 0;
+	virtual void mesh_add_surface(RID p_mesh, uint32_t p_format, PrimitiveType p_primitive, const PoolVector<uint8_t> &p_array, int p_vertex_count, const PoolVector<uint8_t> &p_index_array, int p_index_count, const AABB &p_aabb, const Vector<PoolVector<uint8_t> > &p_blend_shapes = Vector<PoolVector<uint8_t> >(), const Vector<AABB> &p_bone_aabbs = Vector<AABB>()) = 0;
 
 	virtual void mesh_set_blend_shape_count(RID p_mesh, int p_amount) = 0;
 	virtual int mesh_get_blend_shape_count(RID p_mesh) const = 0;
@@ -256,6 +261,8 @@ public:
 
 	virtual void mesh_set_blend_shape_mode(RID p_mesh, BlendShapeMode p_mode) = 0;
 	virtual BlendShapeMode mesh_get_blend_shape_mode(RID p_mesh) const = 0;
+
+	virtual void mesh_surface_update_region(RID p_mesh, int p_surface, int p_offset, const PoolVector<uint8_t> &p_data) = 0;
 
 	virtual void mesh_surface_set_material(RID p_mesh, int p_surface, RID p_material) = 0;
 	virtual RID mesh_surface_get_material(RID p_mesh, int p_surface) const = 0;
@@ -272,15 +279,16 @@ public:
 	virtual uint32_t mesh_surface_get_format(RID p_mesh, int p_surface) const = 0;
 	virtual PrimitiveType mesh_surface_get_primitive_type(RID p_mesh, int p_surface) const = 0;
 
-	virtual Rect3 mesh_surface_get_aabb(RID p_mesh, int p_surface) const = 0;
+	virtual AABB mesh_surface_get_aabb(RID p_mesh, int p_surface) const = 0;
 	virtual Vector<PoolVector<uint8_t> > mesh_surface_get_blend_shapes(RID p_mesh, int p_surface) const = 0;
-	virtual Vector<Rect3> mesh_surface_get_skeleton_aabb(RID p_mesh, int p_surface) const = 0;
+	virtual Vector<AABB> mesh_surface_get_skeleton_aabb(RID p_mesh, int p_surface) const = 0;
+	Array _mesh_surface_get_skeleton_aabb_bind(RID p_mesh, int p_surface) const;
 
 	virtual void mesh_remove_surface(RID p_mesh, int p_index) = 0;
 	virtual int mesh_get_surface_count(RID p_mesh) const = 0;
 
-	virtual void mesh_set_custom_aabb(RID p_mesh, const Rect3 &p_aabb) = 0;
-	virtual Rect3 mesh_get_custom_aabb(RID p_mesh) const = 0;
+	virtual void mesh_set_custom_aabb(RID p_mesh, const AABB &p_aabb) = 0;
+	virtual AABB mesh_get_custom_aabb(RID p_mesh) const = 0;
 
 	virtual void mesh_clear(RID p_mesh) = 0;
 
@@ -308,7 +316,7 @@ public:
 	virtual void multimesh_instance_set_color(RID p_multimesh, int p_index, const Color &p_color) = 0;
 
 	virtual RID multimesh_get_mesh(RID p_multimesh) const = 0;
-	virtual Rect3 multimesh_get_aabb(RID p_multimesh) const = 0;
+	virtual AABB multimesh_get_aabb(RID p_multimesh) const = 0;
 
 	virtual Transform multimesh_instance_get_transform(RID p_multimesh, int p_index) const = 0;
 	virtual Transform2D multimesh_instance_get_transform_2d(RID p_multimesh, int p_index) const = 0;
@@ -354,6 +362,7 @@ public:
 	enum LightParam {
 
 		LIGHT_PARAM_ENERGY,
+		LIGHT_PARAM_INDIRECT_ENERGY,
 		LIGHT_PARAM_SPECULAR,
 		LIGHT_PARAM_RANGE,
 		LIGHT_PARAM_ATTENUATION,
@@ -370,7 +379,9 @@ public:
 		LIGHT_PARAM_MAX
 	};
 
-	virtual RID light_create(LightType p_type) = 0;
+	virtual RID directional_light_create() = 0;
+	virtual RID omni_light_create() = 0;
+	virtual RID spot_light_create() = 0;
 
 	virtual void light_set_color(RID p_light, const Color &p_color) = 0;
 	virtual void light_set_param(RID p_light, LightParam p_param, float p_value) = 0;
@@ -441,8 +452,8 @@ public:
 
 	virtual RID gi_probe_create() = 0;
 
-	virtual void gi_probe_set_bounds(RID p_probe, const Rect3 &p_bounds) = 0;
-	virtual Rect3 gi_probe_get_bounds(RID p_probe) const = 0;
+	virtual void gi_probe_set_bounds(RID p_probe, const AABB &p_bounds) = 0;
+	virtual AABB gi_probe_get_bounds(RID p_probe) const = 0;
 
 	virtual void gi_probe_set_cell_size(RID p_probe, float p_range) = 0;
 	virtual float gi_probe_get_cell_size(RID p_probe) const = 0;
@@ -485,7 +496,7 @@ public:
 	virtual void particles_set_pre_process_time(RID p_particles, float p_time) = 0;
 	virtual void particles_set_explosiveness_ratio(RID p_particles, float p_ratio) = 0;
 	virtual void particles_set_randomness_ratio(RID p_particles, float p_ratio) = 0;
-	virtual void particles_set_custom_aabb(RID p_particles, const Rect3 &p_aabb) = 0;
+	virtual void particles_set_custom_aabb(RID p_particles, const AABB &p_aabb) = 0;
 	virtual void particles_set_speed_scale(RID p_particles, float p_scale) = 0;
 	virtual void particles_set_use_local_coordinates(RID p_particles, bool p_enable) = 0;
 	virtual void particles_set_process_material(RID p_particles, RID p_material) = 0;
@@ -504,7 +515,7 @@ public:
 	virtual void particles_set_draw_passes(RID p_particles, int p_count) = 0;
 	virtual void particles_set_draw_pass_mesh(RID p_particles, int p_pass, RID p_mesh) = 0;
 
-	virtual Rect3 particles_get_current_aabb(RID p_particles) = 0;
+	virtual AABB particles_get_current_aabb(RID p_particles) = 0;
 
 	virtual void particles_set_emission_transform(RID p_particles, const Transform &p_transform) = 0; //this is only used for 2D, in 3D it's automatic
 
@@ -637,7 +648,7 @@ public:
 
 	virtual void environment_set_background(RID p_env, EnvironmentBG p_bg) = 0;
 	virtual void environment_set_sky(RID p_env, RID p_sky) = 0;
-	virtual void environment_set_sky_scale(RID p_env, float p_scale) = 0;
+	virtual void environment_set_sky_custom_fov(RID p_env, float p_scale) = 0;
 	virtual void environment_set_bg_color(RID p_env, const Color &p_color) = 0;
 	virtual void environment_set_bg_energy(RID p_env, float p_energy) = 0;
 	virtual void environment_set_canvas_max_layer(RID p_env, int p_max_layer) = 0;
@@ -675,7 +686,21 @@ public:
 	virtual void environment_set_adjustment(RID p_env, bool p_enable, float p_brightness, float p_contrast, float p_saturation, RID p_ramp) = 0;
 
 	virtual void environment_set_ssr(RID p_env, bool p_enable, int p_max_steps, float p_fade_in, float p_fade_out, float p_depth_tolerance, bool p_roughness) = 0;
-	virtual void environment_set_ssao(RID p_env, bool p_enable, float p_radius, float p_intensity, float p_radius2, float p_intensity2, float p_bias, float p_light_affect, const Color &p_color, bool p_blur) = 0;
+
+	enum EnvironmentSSAOQuality {
+		ENV_SSAO_QUALITY_LOW,
+		ENV_SSAO_QUALITY_MEDIUM,
+		ENV_SSAO_QUALITY_HIGH,
+	};
+
+	enum EnvironmentSSAOBlur {
+		ENV_SSAO_BLUR_DISABLED,
+		ENV_SSAO_BLUR_1x1,
+		ENV_SSAO_BLUR_2x2,
+		ENV_SSAO_BLUR_3x3,
+	};
+
+	virtual void environment_set_ssao(RID p_env, bool p_enable, float p_radius, float p_intensity, float p_radius2, float p_intensity2, float p_bias, float p_light_affect, const Color &p_color, EnvironmentSSAOQuality p_quality, EnvironmentSSAOBlur p_blur, float p_bilateral_sharpness) = 0;
 
 	virtual void environment_set_fog(RID p_env, bool p_enable, const Color &p_color, const Color &p_sun_color, float p_sun_amount) = 0;
 	virtual void environment_set_fog_depth(RID p_env, bool p_enable, float p_depth_begin, float p_depth_curve, bool p_transmit, float p_transmit_curve) = 0;
@@ -730,13 +755,15 @@ public:
 	virtual void instance_set_surface_material(RID p_instance, int p_surface, RID p_material) = 0;
 	virtual void instance_set_visible(RID p_instance, bool p_visible) = 0;
 
+	virtual void instance_set_custom_aabb(RID p_instance, AABB aabb) = 0;
+
 	virtual void instance_attach_skeleton(RID p_instance, RID p_skeleton) = 0;
 	virtual void instance_set_exterior(RID p_instance, bool p_enabled) = 0;
 
 	virtual void instance_set_extra_visibility_margin(RID p_instance, real_t p_margin) = 0;
 
 	// don't use these in a game!
-	virtual Vector<ObjectID> instances_cull_aabb(const Rect3 &p_aabb, RID p_scenario = RID()) const = 0;
+	virtual Vector<ObjectID> instances_cull_aabb(const AABB &p_aabb, RID p_scenario = RID()) const = 0;
 	virtual Vector<ObjectID> instances_cull_ray(const Vector3 &p_from, const Vector3 &p_to, RID p_scenario = RID()) const = 0;
 	virtual Vector<ObjectID> instances_cull_convex(const Vector<Plane> &p_convex, RID p_scenario = RID()) const = 0;
 
@@ -788,10 +815,11 @@ public:
 
 	virtual void canvas_item_add_line(RID p_item, const Point2 &p_from, const Point2 &p_to, const Color &p_color, float p_width = 1.0, bool p_antialiased = false) = 0;
 	virtual void canvas_item_add_polyline(RID p_item, const Vector<Point2> &p_points, const Vector<Color> &p_colors, float p_width = 1.0, bool p_antialiased = false) = 0;
+	virtual void canvas_item_add_multiline(RID p_item, const Vector<Point2> &p_points, const Vector<Color> &p_colors, float p_width = 1.0, bool p_antialiased = false) = 0;
 	virtual void canvas_item_add_rect(RID p_item, const Rect2 &p_rect, const Color &p_color) = 0;
 	virtual void canvas_item_add_circle(RID p_item, const Point2 &p_pos, float p_radius, const Color &p_color) = 0;
 	virtual void canvas_item_add_texture_rect(RID p_item, const Rect2 &p_rect, RID p_texture, bool p_tile = false, const Color &p_modulate = Color(1, 1, 1), bool p_transpose = false, RID p_normal_map = RID()) = 0;
-	virtual void canvas_item_add_texture_rect_region(RID p_item, const Rect2 &p_rect, RID p_texture, const Rect2 &p_src_rect, const Color &p_modulate = Color(1, 1, 1), bool p_transpose = false, RID p_normal_map = RID(), bool p_clip_uv = true) = 0;
+	virtual void canvas_item_add_texture_rect_region(RID p_item, const Rect2 &p_rect, RID p_texture, const Rect2 &p_src_rect, const Color &p_modulate = Color(1, 1, 1), bool p_transpose = false, RID p_normal_map = RID(), bool p_clip_uv = false) = 0;
 	virtual void canvas_item_add_nine_patch(RID p_item, const Rect2 &p_rect, const Rect2 &p_source, RID p_texture, const Vector2 &p_topleft, const Vector2 &p_bottomright, NinePatchAxisMode p_x_axis_mode = NINE_PATCH_STRETCH, NinePatchAxisMode p_y_axis_mode = NINE_PATCH_STRETCH, bool p_draw_center = true, const Color &p_modulate = Color(1, 1, 1), RID p_normal_map = RID()) = 0;
 	virtual void canvas_item_add_primitive(RID p_item, const Vector<Point2> &p_points, const Vector<Color> &p_colors, const Vector<Point2> &p_uvs, RID p_texture, float p_width = 1.0, RID p_normal_map = RID()) = 0;
 	virtual void canvas_item_add_polygon(RID p_item, const Vector<Point2> &p_points, const Vector<Color> &p_colors, const Vector<Point2> &p_uvs = Vector<Point2>(), RID p_texture = RID(), RID p_normal_map = RID(), bool p_antialiased = false) = 0;
@@ -884,7 +912,7 @@ public:
 
 	/* EVENT QUEUING */
 
-	virtual void draw() = 0;
+	virtual void draw(bool p_swap_buffers = true) = 0;
 	virtual void sync() = 0;
 	virtual bool has_changed() const = 0;
 	virtual void init() = 0;
@@ -941,18 +969,29 @@ public:
 };
 
 // make variant understand the enums
-
 VARIANT_ENUM_CAST(VisualServer::CubeMapSide);
 VARIANT_ENUM_CAST(VisualServer::TextureFlags);
 VARIANT_ENUM_CAST(VisualServer::ShaderMode);
 VARIANT_ENUM_CAST(VisualServer::ArrayType);
 VARIANT_ENUM_CAST(VisualServer::ArrayFormat);
 VARIANT_ENUM_CAST(VisualServer::PrimitiveType);
+VARIANT_ENUM_CAST(VisualServer::BlendShapeMode);
 VARIANT_ENUM_CAST(VisualServer::LightType);
 VARIANT_ENUM_CAST(VisualServer::LightParam);
+VARIANT_ENUM_CAST(VisualServer::ViewportUpdateMode);
+VARIANT_ENUM_CAST(VisualServer::ViewportClearMode);
+VARIANT_ENUM_CAST(VisualServer::ViewportMSAA);
+VARIANT_ENUM_CAST(VisualServer::ViewportUsage);
+VARIANT_ENUM_CAST(VisualServer::ViewportRenderInfo);
+VARIANT_ENUM_CAST(VisualServer::ViewportDebugDraw);
 VARIANT_ENUM_CAST(VisualServer::ScenarioDebugMode);
 VARIANT_ENUM_CAST(VisualServer::InstanceType);
+VARIANT_ENUM_CAST(VisualServer::NinePatchAxisMode);
+VARIANT_ENUM_CAST(VisualServer::CanvasLightMode);
+VARIANT_ENUM_CAST(VisualServer::CanvasLightShadowFilter);
+VARIANT_ENUM_CAST(VisualServer::CanvasOccluderPolygonCullMode);
 VARIANT_ENUM_CAST(VisualServer::RenderInfo);
+VARIANT_ENUM_CAST(VisualServer::Features);
 
 //typedef VisualServer VS; // makes it easier to use
 #define VS VisualServer

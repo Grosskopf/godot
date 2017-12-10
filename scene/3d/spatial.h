@@ -106,10 +106,6 @@ class Spatial : public Node {
 	void _notify_dirty();
 	void _propagate_transform_changed(Spatial *p_origin);
 
-	// Deprecated, should be removed in a future version.
-	void _set_rotation_deg(const Vector3 &p_euler_deg);
-	Vector3 _get_rotation_deg() const;
-
 	void _propagate_visibility_changed();
 
 protected:
@@ -136,12 +132,12 @@ public:
 
 	void set_translation(const Vector3 &p_translation);
 	void set_rotation(const Vector3 &p_euler_rad);
-	void set_rotation_in_degrees(const Vector3 &p_euler_deg);
+	void set_rotation_degrees(const Vector3 &p_euler_deg);
 	void set_scale(const Vector3 &p_scale);
 
 	Vector3 get_translation() const;
 	Vector3 get_rotation() const;
-	Vector3 get_rotation_in_degrees() const;
+	Vector3 get_rotation_degrees() const;
 	Vector3 get_scale() const;
 
 	void set_transform(const Transform &p_transform);
@@ -172,7 +168,7 @@ public:
 	void global_translate(const Vector3 &p_offset);
 
 	void look_at(const Vector3 &p_target, const Vector3 &p_up_normal);
-	void look_at_from_pos(const Vector3 &p_pos, const Vector3 &p_target, const Vector3 &p_up_normal);
+	void look_at_from_position(const Vector3 &p_pos, const Vector3 &p_target, const Vector3 &p_up_normal);
 
 	Vector3 to_local(Vector3 p_global) const;
 	Vector3 to_global(Vector3 p_local) const;

@@ -33,7 +33,7 @@
 #include "project_settings.h"
 #include "version.h"
 
-//version 2: changed names for basis, rect3, poolvectors, etc.
+//version 2: changed names for basis, aabb, poolvectors, etc.
 #define FORMAT_VERSION 2
 
 #include "os/dir_access.h"
@@ -679,7 +679,7 @@ Error ResourceInteractiveLoaderText::rename_dependencies(FileAccess *p_f, const 
 
 	String base_path = local_path.get_base_dir();
 
-	uint64_t tag_end = f->get_pos();
+	uint64_t tag_end = f->get_position();
 
 	while (true) {
 
@@ -741,7 +741,7 @@ Error ResourceInteractiveLoaderText::rename_dependencies(FileAccess *p_f, const 
 
 			fw->store_line("[ext_resource path=\"" + path + "\" type=\"" + type + "\" id=" + itos(index) + "]");
 
-			tag_end = f->get_pos();
+			tag_end = f->get_position();
 		}
 	}
 

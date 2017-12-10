@@ -215,6 +215,13 @@ bool ShaderMaterial::_can_do_next_pass() const {
 	return shader.is_valid() && shader->get_mode() == Shader::MODE_SPATIAL;
 }
 
+Shader::Mode ShaderMaterial::get_shader_mode() const {
+	if (shader.is_valid())
+		return shader->get_mode();
+	else
+		return Shader::MODE_SPATIAL;
+}
+
 ShaderMaterial::ShaderMaterial() {
 }
 
@@ -267,6 +274,12 @@ void SpatialMaterial::init_shaders() {
 	shader_names->depth_max_layers = "depth_max_layers";
 
 	shader_names->grow = "grow";
+
+	shader_names->ao_light_affect = "ao_light_affect";
+
+	shader_names->proximity_fade_distance = "proximity_fade_distance";
+	shader_names->distance_fade_min = "distance_fade_min";
+	shader_names->distance_fade_max = "distance_fade_max";
 
 	shader_names->metallic_texture_channel = "metallic_texture_channel";
 	shader_names->roughness_texture_channel = "roughness_texture_channel";
@@ -364,10 +377,10 @@ void SpatialMaterial::_update_shader() {
 		case CULL_DISABLED: code += ",cull_disabled"; break;
 	}
 	switch (diffuse_mode) {
+		case DIFFUSE_BURLEY: code += ",diffuse_burley"; break;
 		case DIFFUSE_LAMBERT: code += ",diffuse_lambert"; break;
 		case DIFFUSE_LAMBERT_WRAP: code += ",diffuse_lambert_wrap"; break;
 		case DIFFUSE_OREN_NAYAR: code += ",diffuse_oren_nayar"; break;
-		case DIFFUSE_BURLEY: code += ",diffuse_burley"; break;
 		case DIFFUSE_TOON: code += ",diffuse_toon"; break;
 	}
 	switch (specular_mode) {
@@ -399,6 +412,14 @@ void SpatialMaterial::_update_shader() {
 	code += "uniform float metallic;\n";
 	if (grow_enabled) {
 		code += "uniform float grow;\n";
+	}
+
+	if (proximity_fade_enabled) {
+		code += "uniform float proximity_fade_distance;\n";
+	}
+	if (distance_fade_enabled) {
+		code += "uniform float distance_fade_min;\n";
+		code += "uniform float distance_fade_max;\n";
 	}
 
 	if (flags[FLAG_USE_ALPHA_SCISSOR]) {
@@ -450,6 +471,7 @@ void SpatialMaterial::_update_shader() {
 	if (features[FEATURE_AMBIENT_OCCLUSION]) {
 		code += "uniform sampler2D texture_ambient_occlusion : hint_white;\n";
 		code += "uniform vec4 ao_texture_channel;\n";
+		code += "uniform float ao_light_affect;\n";
 	}
 
 	if (features[FEATURE_DETAIL]) {
@@ -638,16 +660,16 @@ void SpatialMaterial::_update_shader() {
 			code += "\t\tvec2 P = view_dir.xy * depth_scale;\n";
 			code += "\t\tvec2 delta = P / num_layers;\n";
 			code += "\t\tvec2  ofs = base_uv;\n";
-			code += "\t\tfloat depth = texture(texture_depth, ofs).r;\n";
+			code += "\t\tfloat depth = textureLod(texture_depth, ofs,0.0).r;\n";
 			code += "\t\tfloat current_depth = 0.0;\n";
 			code += "\t\twhile(current_depth < depth) {\n";
 			code += "\t\t\tofs -= delta;\n";
-			code += "\t\t\tdepth = texture(texture_depth, ofs).r;\n";
+			code += "\t\t\tdepth = textureLod(texture_depth, ofs,0.0).r;\n";
 			code += "\t\t\tcurrent_depth += layer_depth;\n";
 			code += "\t\t}\n";
 			code += "\t\tvec2 prev_ofs = ofs + delta;\n";
 			code += "\t\tfloat after_depth  = depth - current_depth;\n";
-			code += "\t\tfloat before_depth = texture(texture_depth, prev_ofs).r - current_depth + layer_depth;\n";
+			code += "\t\tfloat before_depth = textureLod(texture_depth, prev_ofs, 0.0).r - current_depth + layer_depth;\n";
 			code += "\t\tfloat weight = after_depth / (after_depth - before_depth);\n";
 			code += "\t\tofs = mix(ofs,prev_ofs,weight);\n";
 
@@ -672,6 +694,10 @@ void SpatialMaterial::_update_shader() {
 		} else {
 			code += "\tvec4 albedo_tex = texture(texture_albedo,base_uv);\n";
 		}
+	}
+
+	if (flags[FLAG_ALBEDO_TEXTURE_FORCE_SRGB]) {
+		code += "\talbedo_tex.rgb = mix(pow((albedo_tex.rgb + vec3(0.055)) * (1.0 / (1.0 + 0.055)),vec3(2.4)),albedo_tex.rgb.rgb * (1.0 / 12.92),lessThan(albedo_tex.rgb,vec3(0.04045)));\n";
 	}
 
 	if (flags[FLAG_ALBEDO_FROM_VERTEX_COLOR]) {
@@ -708,7 +734,11 @@ void SpatialMaterial::_update_shader() {
 		} else {
 			code += "\tvec3 emission_tex = texture(texture_emission,base_uv).rgb;\n";
 		}
-		code += "\tEMISSION = (emission.rgb+emission_tex)*emission_energy;\n";
+		if (emission_op == EMISSION_OP_ADD) {
+			code += "\tEMISSION = (emission.rgb+emission_tex)*emission_energy;\n";
+		} else {
+			code += "\tEMISSION = (emission.rgb*emission_tex)*emission_energy;\n";
+		}
 	}
 
 	if (features[FEATURE_REFRACTION] && !flags[FLAG_UV1_USE_TRIPLANAR]) { //refraction not supported with triplanar
@@ -725,8 +755,19 @@ void SpatialMaterial::_update_shader() {
 		code += "\tALBEDO *= 1.0 - ref_amount;\n";
 		code += "\tALPHA = 1.0;\n";
 
-	} else if (features[FEATURE_TRANSPARENT] || features[FLAG_USE_ALPHA_SCISSOR]) {
+	} else if (features[FEATURE_TRANSPARENT] || flags[FLAG_USE_ALPHA_SCISSOR] || distance_fade_enabled || proximity_fade_enabled) {
 		code += "\tALPHA = albedo.a * albedo_tex.a;\n";
+	}
+
+	if (proximity_fade_enabled) {
+		code += "\tfloat depth_tex = textureLod(DEPTH_TEXTURE,SCREEN_UV,0.0).r;\n";
+		code += "\tvec4 world_pos = INV_PROJECTION_MATRIX * vec4(SCREEN_UV*2.0-1.0,depth_tex*2.0-1.0,1.0);\n";
+		code += "\tworld_pos.xyz/=world_pos.w;\n";
+		code += "\tALPHA*=clamp(1.0-smoothstep(world_pos.z+proximity_fade_distance,world_pos.z,VERTEX.z),0.0,1.0);\n";
+	}
+
+	if (distance_fade_enabled) {
+		code += "\tALPHA*=clamp(smoothstep(distance_fade_min,distance_fade_max,-VERTEX.z),0.0,1.0);\n";
 	}
 
 	if (features[FEATURE_RIM]) {
@@ -773,6 +814,8 @@ void SpatialMaterial::_update_shader() {
 				code += "\tAO = dot(texture(texture_ambient_occlusion,base_uv),ao_texture_channel);\n";
 			}
 		}
+
+		code += "\tAO_LIGHT_AFFECT = ao_light_affect;\n";
 	}
 
 	if (features[FEATURE_SUBSURACE_SCATTERING]) {
@@ -834,10 +877,10 @@ void SpatialMaterial::_update_shader() {
 		code += "\tvec3 detail_norm = mix(NORMALMAP,detail_norm_tex.rgb,detail_tex.a);\n";
 		code += "\tNORMALMAP = mix(NORMALMAP,detail_norm,detail_mask_tex.r);\n";
 		code += "\tALBEDO.rgb = mix(ALBEDO.rgb,detail,detail_mask_tex.r);\n";
+	}
 
-		if (flags[FLAG_USE_ALPHA_SCISSOR]) {
-			code += "\tALPHA_SCISSOR=alpha_scissor_threshold;\n";
-		}
+	if (flags[FLAG_USE_ALPHA_SCISSOR]) {
+		code += "\tALPHA_SCISSOR=alpha_scissor_threshold;\n";
 	}
 
 	code += "}\n";
@@ -987,6 +1030,16 @@ void SpatialMaterial::set_rim_tint(float p_rim_tint) {
 float SpatialMaterial::get_rim_tint() const {
 
 	return rim_tint;
+}
+
+void SpatialMaterial::set_ao_light_affect(float p_ao_light_affect) {
+
+	ao_light_affect = p_ao_light_affect;
+	VS::get_singleton()->material_set_param(_get_material(), shader_names->ao_light_affect, p_ao_light_affect);
+}
+float SpatialMaterial::get_ao_light_affect() const {
+
+	return ao_light_affect;
 }
 
 void SpatialMaterial::set_clearcoat(float p_clearcoat) {
@@ -1204,6 +1257,15 @@ Ref<Texture> SpatialMaterial::get_texture(TextureParam p_param) const {
 	return textures[p_param];
 }
 
+Ref<Texture> SpatialMaterial::get_texture_by_name(StringName p_name) const {
+	for (int i = 0; i < (int)SpatialMaterial::TEXTURE_MAX; i++) {
+		TextureParam param = TextureParam(i);
+		if (p_name == shader_names->texture_names[param])
+			return textures[param];
+	}
+	return Ref<Texture>();
+}
+
 void SpatialMaterial::_validate_feature(const String &text, Feature feature, PropertyInfo &property) const {
 	if (property.name.begins_with(text) && property.name != text + "_enabled" && !features[feature]) {
 		property.usage = 0;
@@ -1228,6 +1290,14 @@ void SpatialMaterial::_validate_property(PropertyInfo &property) const {
 	}
 
 	if (property.name == "params_grow_amount" && !grow_enabled) {
+		property.usage = 0;
+	}
+
+	if (property.name == "proximity_fade_distance" && !proximity_fade_enabled) {
+		property.usage = 0;
+	}
+
+	if ((property.name == "distance_fade_max_distance" || property.name == "distance_fade_min_distance") && !distance_fade_enabled) {
 		property.usage = 0;
 	}
 
@@ -1526,6 +1596,84 @@ void SpatialMaterial::set_on_top_of_alpha() {
 	set_flag(FLAG_DISABLE_DEPTH_TEST, true);
 }
 
+void SpatialMaterial::set_proximity_fade(bool p_enable) {
+
+	proximity_fade_enabled = p_enable;
+	_queue_shader_change();
+	_change_notify();
+}
+
+bool SpatialMaterial::is_proximity_fade_enabled() const {
+
+	return proximity_fade_enabled;
+}
+
+void SpatialMaterial::set_proximity_fade_distance(float p_distance) {
+
+	proximity_fade_distance = p_distance;
+	VS::get_singleton()->material_set_param(_get_material(), shader_names->proximity_fade_distance, p_distance);
+}
+float SpatialMaterial::get_proximity_fade_distance() const {
+
+	return proximity_fade_distance;
+}
+
+void SpatialMaterial::set_distance_fade(bool p_enable) {
+
+	distance_fade_enabled = p_enable;
+	_queue_shader_change();
+	_change_notify();
+}
+bool SpatialMaterial::is_distance_fade_enabled() const {
+
+	return distance_fade_enabled;
+}
+
+void SpatialMaterial::set_distance_fade_max_distance(float p_distance) {
+
+	distance_fade_max_distance = p_distance;
+	VS::get_singleton()->material_set_param(_get_material(), shader_names->distance_fade_max, distance_fade_max_distance);
+}
+float SpatialMaterial::get_distance_fade_max_distance() const {
+
+	return distance_fade_max_distance;
+}
+
+void SpatialMaterial::set_distance_fade_min_distance(float p_distance) {
+
+	distance_fade_min_distance = p_distance;
+	VS::get_singleton()->material_set_param(_get_material(), shader_names->distance_fade_min, distance_fade_min_distance);
+}
+
+float SpatialMaterial::get_distance_fade_min_distance() const {
+
+	return distance_fade_min_distance;
+}
+
+void SpatialMaterial::set_emission_operator(EmissionOperator p_op) {
+
+	if (emission_op == p_op)
+		return;
+	emission_op = p_op;
+	_queue_shader_change();
+}
+
+SpatialMaterial::EmissionOperator SpatialMaterial::get_emission_operator() const {
+
+	return emission_op;
+}
+
+RID SpatialMaterial::get_shader_rid() const {
+
+	ERR_FAIL_COND_V(!shader_map.has(current_key), RID());
+	return shader_map[current_key].shader;
+}
+
+Shader::Mode SpatialMaterial::get_shader_mode() const {
+
+	return Shader::MODE_SPATIAL;
+}
+
 void SpatialMaterial::_bind_methods() {
 
 	ClassDB::bind_method(D_METHOD("set_albedo", "albedo"), &SpatialMaterial::set_albedo);
@@ -1654,6 +1802,12 @@ void SpatialMaterial::_bind_methods() {
 	ClassDB::bind_method(D_METHOD("set_grow", "amount"), &SpatialMaterial::set_grow);
 	ClassDB::bind_method(D_METHOD("get_grow"), &SpatialMaterial::get_grow);
 
+	ClassDB::bind_method(D_METHOD("set_emission_operator", "operator"), &SpatialMaterial::set_emission_operator);
+	ClassDB::bind_method(D_METHOD("get_emission_operator"), &SpatialMaterial::get_emission_operator);
+
+	ClassDB::bind_method(D_METHOD("set_ao_light_affect", "amount"), &SpatialMaterial::set_ao_light_affect);
+	ClassDB::bind_method(D_METHOD("get_ao_light_affect"), &SpatialMaterial::get_ao_light_affect);
+
 	ClassDB::bind_method(D_METHOD("set_alpha_scissor_threshold", "threshold"), &SpatialMaterial::set_alpha_scissor_threshold);
 	ClassDB::bind_method(D_METHOD("get_alpha_scissor_threshold"), &SpatialMaterial::get_alpha_scissor_threshold);
 
@@ -1672,6 +1826,21 @@ void SpatialMaterial::_bind_methods() {
 	ClassDB::bind_method(D_METHOD("set_refraction_texture_channel", "channel"), &SpatialMaterial::set_refraction_texture_channel);
 	ClassDB::bind_method(D_METHOD("get_refraction_texture_channel"), &SpatialMaterial::get_refraction_texture_channel);
 
+	ClassDB::bind_method(D_METHOD("set_proximity_fade", "enabled"), &SpatialMaterial::set_proximity_fade);
+	ClassDB::bind_method(D_METHOD("is_proximity_fade_enabled"), &SpatialMaterial::is_proximity_fade_enabled);
+
+	ClassDB::bind_method(D_METHOD("set_proximity_fade_distance", "distance"), &SpatialMaterial::set_proximity_fade_distance);
+	ClassDB::bind_method(D_METHOD("get_proximity_fade_distance"), &SpatialMaterial::get_proximity_fade_distance);
+
+	ClassDB::bind_method(D_METHOD("set_distance_fade", "enabled"), &SpatialMaterial::set_distance_fade);
+	ClassDB::bind_method(D_METHOD("is_distance_fade_enabled"), &SpatialMaterial::is_distance_fade_enabled);
+
+	ClassDB::bind_method(D_METHOD("set_distance_fade_max_distance", "distance"), &SpatialMaterial::set_distance_fade_max_distance);
+	ClassDB::bind_method(D_METHOD("get_distance_fade_max_distance"), &SpatialMaterial::get_distance_fade_max_distance);
+
+	ClassDB::bind_method(D_METHOD("set_distance_fade_min_distance", "distance"), &SpatialMaterial::set_distance_fade_min_distance);
+	ClassDB::bind_method(D_METHOD("get_distance_fade_min_distance"), &SpatialMaterial::get_distance_fade_min_distance);
+
 	ADD_GROUP("Flags", "flags_");
 	ADD_PROPERTYI(PropertyInfo(Variant::BOOL, "flags_transparent"), "set_feature", "get_feature", FEATURE_TRANSPARENT);
 	ADD_PROPERTYI(PropertyInfo(Variant::BOOL, "flags_unshaded"), "set_flag", "get_flag", FLAG_UNSHADED);
@@ -1680,12 +1849,13 @@ void SpatialMaterial::_bind_methods() {
 	ADD_PROPERTYI(PropertyInfo(Variant::BOOL, "flags_use_point_size"), "set_flag", "get_flag", FLAG_USE_POINT_SIZE);
 	ADD_PROPERTYI(PropertyInfo(Variant::BOOL, "flags_world_triplanar"), "set_flag", "get_flag", FLAG_TRIPLANAR_USE_WORLD);
 	ADD_PROPERTYI(PropertyInfo(Variant::BOOL, "flags_fixed_size"), "set_flag", "get_flag", FLAG_FIXED_SIZE);
+	ADD_PROPERTYI(PropertyInfo(Variant::BOOL, "flags_albedo_tex_force_srgb"), "set_flag", "get_flag", FLAG_ALBEDO_TEXTURE_FORCE_SRGB);
 	ADD_GROUP("Vertex Color", "vertex_color");
 	ADD_PROPERTYI(PropertyInfo(Variant::BOOL, "vertex_color_use_as_albedo"), "set_flag", "get_flag", FLAG_ALBEDO_FROM_VERTEX_COLOR);
 	ADD_PROPERTYI(PropertyInfo(Variant::BOOL, "vertex_color_is_srgb"), "set_flag", "get_flag", FLAG_SRGB_VERTEX_COLOR);
 
 	ADD_GROUP("Parameters", "params_");
-	ADD_PROPERTY(PropertyInfo(Variant::INT, "params_diffuse_mode", PROPERTY_HINT_ENUM, "Lambert,Lambert Wrap,Oren Nayar,Burley,Toon"), "set_diffuse_mode", "get_diffuse_mode");
+	ADD_PROPERTY(PropertyInfo(Variant::INT, "params_diffuse_mode", PROPERTY_HINT_ENUM, "Burley,Lambert,Lambert Wrap,Oren Nayar,Toon"), "set_diffuse_mode", "get_diffuse_mode");
 	ADD_PROPERTY(PropertyInfo(Variant::INT, "params_specular_mode", PROPERTY_HINT_ENUM, "SchlickGGX,Blinn,Phong,Toon,Disabled"), "set_specular_mode", "get_specular_mode");
 	ADD_PROPERTY(PropertyInfo(Variant::INT, "params_blend_mode", PROPERTY_HINT_ENUM, "Mix,Add,Sub,Mul"), "set_blend_mode", "get_blend_mode");
 	ADD_PROPERTY(PropertyInfo(Variant::INT, "params_cull_mode", PROPERTY_HINT_ENUM, "Back,Front,Disabled"), "set_cull_mode", "get_cull_mode");
@@ -1721,6 +1891,7 @@ void SpatialMaterial::_bind_methods() {
 	ADD_PROPERTYI(PropertyInfo(Variant::BOOL, "emission_enabled"), "set_feature", "get_feature", FEATURE_EMISSION);
 	ADD_PROPERTY(PropertyInfo(Variant::COLOR, "emission", PROPERTY_HINT_COLOR_NO_ALPHA), "set_emission", "get_emission");
 	ADD_PROPERTY(PropertyInfo(Variant::REAL, "emission_energy", PROPERTY_HINT_RANGE, "0,16,0.01"), "set_emission_energy", "get_emission_energy");
+	ADD_PROPERTY(PropertyInfo(Variant::INT, "emission_operator", PROPERTY_HINT_ENUM, "Add,Multiply"), "set_emission_operator", "get_emission_operator");
 	ADD_PROPERTYI(PropertyInfo(Variant::OBJECT, "emission_texture", PROPERTY_HINT_RESOURCE_TYPE, "Texture"), "set_texture", "get_texture", TEXTURE_EMISSION);
 
 	ADD_GROUP("NormalMap", "normal_");
@@ -1747,6 +1918,7 @@ void SpatialMaterial::_bind_methods() {
 
 	ADD_GROUP("Ambient Occlusion", "ao_");
 	ADD_PROPERTYI(PropertyInfo(Variant::BOOL, "ao_enabled"), "set_feature", "get_feature", FEATURE_AMBIENT_OCCLUSION);
+	ADD_PROPERTY(PropertyInfo(Variant::REAL, "ao_light_affect", PROPERTY_HINT_RANGE, "0,1,0.01"), "set_ao_light_affect", "get_ao_light_affect");
 	ADD_PROPERTYI(PropertyInfo(Variant::OBJECT, "ao_texture", PROPERTY_HINT_RESOURCE_TYPE, "Texture"), "set_texture", "get_texture", TEXTURE_AMBIENT_OCCLUSION);
 	ADD_PROPERTYI(PropertyInfo(Variant::BOOL, "ao_on_uv2"), "set_flag", "get_flag", FLAG_AO_ON_UV2);
 	ADD_PROPERTY(PropertyInfo(Variant::INT, "ao_texture_channel", PROPERTY_HINT_ENUM, "Red,Green,Blue,Alpha,Gray"), "set_ao_texture_channel", "get_ao_texture_channel");
@@ -1794,6 +1966,14 @@ void SpatialMaterial::_bind_methods() {
 	ADD_PROPERTY(PropertyInfo(Variant::VECTOR3, "uv2_offset"), "set_uv2_offset", "get_uv2_offset");
 	ADD_PROPERTYI(PropertyInfo(Variant::BOOL, "uv2_triplanar"), "set_flag", "get_flag", FLAG_UV2_USE_TRIPLANAR);
 	ADD_PROPERTY(PropertyInfo(Variant::REAL, "uv2_triplanar_sharpness", PROPERTY_HINT_EXP_EASING), "set_uv2_triplanar_blend_sharpness", "get_uv2_triplanar_blend_sharpness");
+
+	ADD_GROUP("Proximity Fade", "proximity_fade_");
+	ADD_PROPERTY(PropertyInfo(Variant::BOOL, "proximity_fade_enable"), "set_proximity_fade", "is_proximity_fade_enabled");
+	ADD_PROPERTY(PropertyInfo(Variant::REAL, "proximity_fade_distance", PROPERTY_HINT_RANGE, "0,4096,0.1"), "set_proximity_fade_distance", "get_proximity_fade_distance");
+	ADD_GROUP("Distance Fade", "distance_fade_");
+	ADD_PROPERTY(PropertyInfo(Variant::BOOL, "distance_fade_enable"), "set_distance_fade", "is_distance_fade_enabled");
+	ADD_PROPERTY(PropertyInfo(Variant::REAL, "distance_fade_min_distance", PROPERTY_HINT_RANGE, "0,4096,0.1"), "set_distance_fade_min_distance", "get_distance_fade_min_distance");
+	ADD_PROPERTY(PropertyInfo(Variant::REAL, "distance_fade_max_distance", PROPERTY_HINT_RANGE, "0,4096,0.1"), "set_distance_fade_max_distance", "get_distance_fade_max_distance");
 
 	BIND_ENUM_CONSTANT(TEXTURE_ALBEDO);
 	BIND_ENUM_CONSTANT(TEXTURE_METALLIC);
@@ -1856,12 +2036,13 @@ void SpatialMaterial::_bind_methods() {
 	BIND_ENUM_CONSTANT(FLAG_AO_ON_UV2);
 	BIND_ENUM_CONSTANT(FLAG_USE_ALPHA_SCISSOR);
 	BIND_ENUM_CONSTANT(FLAG_TRIPLANAR_USE_WORLD);
+	BIND_ENUM_CONSTANT(FLAG_ALBEDO_TEXTURE_FORCE_SRGB);
 	BIND_ENUM_CONSTANT(FLAG_MAX);
 
+	BIND_ENUM_CONSTANT(DIFFUSE_BURLEY);
 	BIND_ENUM_CONSTANT(DIFFUSE_LAMBERT);
 	BIND_ENUM_CONSTANT(DIFFUSE_LAMBERT_WRAP);
 	BIND_ENUM_CONSTANT(DIFFUSE_OREN_NAYAR);
-	BIND_ENUM_CONSTANT(DIFFUSE_BURLEY);
 	BIND_ENUM_CONSTANT(DIFFUSE_TOON);
 
 	BIND_ENUM_CONSTANT(SPECULAR_SCHLICK_GGX);
@@ -1880,10 +2061,13 @@ void SpatialMaterial::_bind_methods() {
 	BIND_ENUM_CONSTANT(TEXTURE_CHANNEL_BLUE);
 	BIND_ENUM_CONSTANT(TEXTURE_CHANNEL_ALPHA);
 	BIND_ENUM_CONSTANT(TEXTURE_CHANNEL_GRAYSCALE);
+
+	BIND_ENUM_CONSTANT(EMISSION_OP_ADD);
+	BIND_ENUM_CONSTANT(EMISSION_OP_MULTIPLY);
 }
 
-SpatialMaterial::SpatialMaterial()
-	: element(this) {
+SpatialMaterial::SpatialMaterial() :
+		element(this) {
 
 	//initialize to right values
 	set_albedo(Color(1.0, 1.0, 1.0, 1.0));
@@ -1915,6 +2099,15 @@ SpatialMaterial::SpatialMaterial()
 	set_particles_anim_v_frames(1);
 	set_particles_anim_loop(false);
 	set_alpha_scissor_threshold(0.98);
+	emission_op = EMISSION_OP_ADD;
+
+	proximity_fade_enabled = false;
+	distance_fade_enabled = false;
+	set_proximity_fade_distance(1);
+	set_distance_fade_min_distance(0);
+	set_distance_fade_max_distance(10);
+
+	set_ao_light_affect(0.0);
 
 	set_metallic_texture_channel(TEXTURE_CHANNEL_RED);
 	set_roughness_texture_channel(TEXTURE_CHANNEL_RED);

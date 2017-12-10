@@ -67,6 +67,9 @@ class Physics2DServerSW : public Physics2DServer {
 	static Physics2DServerSW *singletonsw;
 
 	//void _clear_query(Query2DSW *p_query);
+
+	RID _shape_create(ShapeType p_shape);
+
 public:
 	struct CollCbkData {
 
@@ -78,9 +81,17 @@ public:
 		Vector2 *ptr;
 	};
 
+	virtual RID line_shape_create();
+	virtual RID ray_shape_create();
+	virtual RID segment_shape_create();
+	virtual RID circle_shape_create();
+	virtual RID rectangle_shape_create();
+	virtual RID capsule_shape_create();
+	virtual RID convex_polygon_shape_create();
+	virtual RID concave_polygon_shape_create();
+
 	static void _shape_col_cbk(const Vector2 &p_point_A, const Vector2 &p_point_B, void *p_userdata);
 
-	virtual RID shape_create(ShapeType p_shape);
 	virtual void shape_set_data(RID p_shape, const Variant &p_data);
 	virtual void shape_set_custom_solver_bias(RID p_shape, real_t p_bias);
 
@@ -103,7 +114,7 @@ public:
 	virtual Vector<Vector2> space_get_contacts(RID p_space) const;
 	virtual int space_get_contact_count(RID p_space) const;
 
-	// this function only works on fixed process, errors and returns null otherwise
+	// this function only works on physics process, errors and returns null otherwise
 	virtual Physics2DDirectSpaceState *space_get_direct_state(RID p_space);
 
 	/* AREA API */
@@ -149,7 +160,7 @@ public:
 	/* BODY API */
 
 	// create a body of a given type
-	virtual RID body_create(BodyMode p_mode = BODY_MODE_RIGID, bool p_init_sleeping = false);
+	virtual RID body_create();
 
 	virtual void body_set_space(RID p_body, RID p_space);
 	virtual RID body_get_space(RID p_body) const;
@@ -221,6 +232,9 @@ public:
 	virtual void body_set_pickable(RID p_body, bool p_pickable);
 
 	virtual bool body_test_motion(RID p_body, const Transform2D &p_from, const Vector2 &p_motion, real_t p_margin = 0.001, MotionResult *r_result = NULL);
+
+	// this function only works on physics process, errors and returns null otherwise
+	virtual Physics2DDirectBodyState *body_get_direct_state(RID p_body);
 
 	/* JOINT API */
 

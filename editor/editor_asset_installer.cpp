@@ -197,7 +197,7 @@ void EditorAssetInstaller::open(const String &p_path, int p_depth) {
 
 			String res_path = "res://" + path;
 			if (FileAccess::exists(res_path)) {
-				ti->set_custom_color(0, Color(1, 0.3, 0.2));
+				ti->set_custom_color(0, get_color("error_color", "Editor"));
 				ti->set_tooltip(0, res_path + " (Already Exists)");
 				ti->set_checked(0, false);
 			} else {
@@ -268,7 +268,7 @@ void EditorAssetInstaller::ok_pressed() {
 
 				//read
 				unzOpenCurrentFile(pkg);
-				unzReadCurrentFile(pkg, data.ptr(), data.size());
+				unzReadCurrentFile(pkg, data.ptrw(), data.size());
 				unzCloseCurrentFile(pkg);
 
 				FileAccess *f = FileAccess::open(path, FileAccess::WRITE);

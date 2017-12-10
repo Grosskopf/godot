@@ -1,4 +1,4 @@
-﻿/*************************************************************************/
+/*************************************************************************/
 /*  property_editor.h                                                    */
 /*************************************************************************/
 /*                       This file is part of:                           */
@@ -53,6 +53,19 @@ class PropertyValueEvaluator;
 class CreateDialog;
 class PropertySelector;
 
+class EditorResourceConversionPlugin : public Reference {
+
+	GDCLASS(EditorResourceConversionPlugin, Reference)
+
+protected:
+	static void _bind_methods();
+
+public:
+	virtual String converts_to() const;
+	virtual bool handles(const Ref<Resource> &p_resource) const;
+	virtual Ref<Resource> convert(const Ref<Resource> &p_resource);
+};
+
 class CustomPropertyEditor : public Popup {
 
 	GDCLASS(CustomPropertyEditor, Popup);
@@ -68,7 +81,8 @@ class CustomPropertyEditor : public Popup {
 		OBJ_MENU_PASTE = 5,
 		OBJ_MENU_NEW_SCRIPT = 6,
 		OBJ_MENU_SHOW_IN_FILE_SYSTEM = 7,
-		TYPE_BASE_ID = 100
+		TYPE_BASE_ID = 100,
+		CONVERT_BASE_ID = 1000
 	};
 
 	enum {
@@ -189,9 +203,9 @@ class PropertyEditor : public Control {
 	bool hide_script;
 	bool use_folding;
 	bool property_selectable;
-
 	bool updating_folding;
 
+	List<String> foldable_property_cache;
 	HashMap<String, String> pending;
 	String selected_property;
 
@@ -230,6 +244,7 @@ class PropertyEditor : public Control {
 	bool _might_be_in_instance();
 	bool _get_instanced_node_original_property(const StringName &p_prop, Variant &value);
 	bool _is_property_different(const Variant &p_current, const Variant &p_orig, int p_usage = 0);
+	bool _is_instanced_node_with_original_property_different(const String &p_name, TreeItem *item);
 
 	void _refresh_item(TreeItem *p_item);
 	void _set_range_def(Object *p_item, String prop, float p_frame);
@@ -290,6 +305,9 @@ public:
 	void set_property_selectable(bool p_selectable);
 
 	void set_use_folding(bool p_enable);
+
+	void collapse_all_folding();
+	void expand_all_folding();
 	PropertyEditor();
 	~PropertyEditor();
 };

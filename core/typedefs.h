@@ -73,7 +73,7 @@ T *_nullptr() {
 
 #define OFFSET_OF(st, m) \
 	((size_t)((char *)&(_nullptr<st>()->m) - (char *)0))
-/**
+	/**
  * Some platforms (devices) not define NULL
  */
 
@@ -81,7 +81,7 @@ T *_nullptr() {
 #define NULL 0
 #endif
 
-/**
+	/**
  * Windows defines a lot of badly stuff we'll never ever use. undefine it.
  */
 
@@ -98,12 +98,12 @@ T *_nullptr() {
 #undef OK
 #endif
 
+#include "int_types.h"
+
 #include "error_list.h"
 #include "error_macros.h"
 
-#include "int_types.h"
-
-/** Generic ABS function, for math uses please use Math::abs */
+	/** Generic ABS function, for math uses please use Math::abs */
 
 #ifndef ABS
 #define ABS(m_v) ((m_v < 0) ? (-(m_v)) : (m_v))
@@ -289,5 +289,13 @@ struct _GlobalLock {
 
 #define __STRX(m_index) #m_index
 #define __STR(m_index) __STRX(m_index)
+
+#ifdef __GNUC__
+#define likely(x) __builtin_expect(!!(x), 1)
+#define unlikely(x) __builtin_expect(!!(x), 0)
+#else
+#define likely(x) x
+#define unlikely(x) x
+#endif
 
 #endif /* typedefs.h */

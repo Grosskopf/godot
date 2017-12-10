@@ -68,7 +68,7 @@ void AudioEffectChorusInstance::_process_chunk(const AudioFrame *p_src_frames, A
 
 		unsigned int local_rb_pos = buffer_pos;
 		AudioFrame *dst_buff = p_dst_frames;
-		AudioFrame *rb_buff = audio_buffer.ptr();
+		AudioFrame *rb_buff = audio_buffer.ptrw();
 
 		double delay_msec = v.delay;
 		unsigned int delay_frames = Math::fast_ftoi((delay_msec / 1000.0) * mix_rate);
@@ -182,9 +182,8 @@ Ref<AudioEffectInstance> AudioEffectChorus::instance() {
 
 void AudioEffectChorus::set_voice_count(int p_voices) {
 
-	ERR_FAIL_COND(p_voices < 1 || p_voices >= MAX_VOICES);
+	ERR_FAIL_COND(p_voices < 1 || p_voices > MAX_VOICES);
 	voice_count = p_voices;
-	_change_notify();
 }
 
 int AudioEffectChorus::get_voice_count() const {

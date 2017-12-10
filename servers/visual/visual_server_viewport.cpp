@@ -54,7 +54,7 @@ void VisualServerViewport::_draw_viewport(Viewport *p_viewport, ARVRInterface::E
 	bool can_draw_3d = !p_viewport->disable_3d && !p_viewport->disable_3d_by_usage && VSG::scene->camera_owner.owns(p_viewport->camera);
 
 	if (p_viewport->clear_mode != VS::VIEWPORT_CLEAR_NEVER) {
-		VSG::rasterizer->clear_render_target(clear_color);
+		VSG::rasterizer->clear_render_target(p_viewport->transparent_bg ? Color(0, 0, 0, 0) : clear_color);
 		if (p_viewport->clear_mode == VS::VIEWPORT_CLEAR_ONLY_NEXT_FRAME) {
 			p_viewport->clear_mode = VS::VIEWPORT_CLEAR_NEVER;
 		}
@@ -268,7 +268,7 @@ void VisualServerViewport::draw_viewports() {
 
 		if (vp->use_arvr && arvr_interface.is_valid()) {
 			// override our size, make sure it matches our required size
-			Size2 size = arvr_interface->get_recommended_render_targetsize();
+			Size2 size = arvr_interface->get_render_targetsize();
 			VSG::storage->render_target_set_size(vp->render_target, size.x, size.y);
 
 			// render mono or left eye first
@@ -504,6 +504,7 @@ void VisualServerViewport::viewport_set_transparent_background(RID p_viewport, b
 	ERR_FAIL_COND(!viewport);
 
 	VSG::storage->render_target_set_flag(viewport->render_target, RasterizerStorage::RENDER_TARGET_TRANSPARENT, p_enabled);
+	viewport->transparent_bg = true;
 }
 
 void VisualServerViewport::viewport_set_global_canvas_transform(RID p_viewport, const Transform2D &p_transform) {

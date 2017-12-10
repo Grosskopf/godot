@@ -168,7 +168,7 @@ void FileAccessUnix::seek_end(int64_t p_position) {
 		check_errors();
 }
 
-size_t FileAccessUnix::get_pos() const {
+size_t FileAccessUnix::get_position() const {
 
 	ERR_FAIL_COND_V(!f, 0);
 
@@ -223,6 +223,12 @@ Error FileAccessUnix::get_error() const {
 	return last_error;
 }
 
+void FileAccessUnix::flush() {
+
+	ERR_FAIL_COND(!f);
+	fflush(f);
+}
+
 void FileAccessUnix::store_8(uint8_t p_dest) {
 
 	ERR_FAIL_COND(!f);
@@ -272,6 +278,15 @@ uint64_t FileAccessUnix::_get_modified_time(const String &p_file) {
 
 		ERR_FAIL_V(0);
 	};
+}
+
+Error FileAccessUnix::_chmod(const String &p_path, int p_mod) {
+	int err = chmod(p_path.utf8().get_data(), p_mod);
+	if (!err) {
+		return OK;
+	}
+
+	return FAILED;
 }
 
 FileAccess *FileAccessUnix::create_libc() {

@@ -72,6 +72,7 @@ private:
 	Button *button_export;
 	bool updating;
 
+	AcceptDialog *error_dialog;
 	ConfirmationDialog *delete_confirm;
 
 	OptionButton *export_filter;
@@ -97,6 +98,8 @@ private:
 
 	Label *export_error;
 	HBoxContainer *export_templates_error;
+
+	String default_filename;
 
 	void _patch_selected(const String &p_path);
 	void _patch_deleted();

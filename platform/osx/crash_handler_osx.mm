@@ -29,6 +29,7 @@
 /*************************************************************************/
 #include "main/main.h"
 #include "os_osx.h"
+#include "project_settings.h"
 
 #include <string.h>
 #include <unistd.h>
@@ -43,6 +44,7 @@
 #include <dlfcn.h>
 #include <execinfo.h>
 #include <signal.h>
+#include <stdlib.h>
 
 #include <mach-o/dyld.h>
 #include <mach-o/getsect.h>
@@ -77,7 +79,7 @@ static void handle_crash(int sig) {
 	void *bt_buffer[256];
 	size_t size = backtrace(bt_buffer, 256);
 	String _execpath = OS::get_singleton()->get_executable_path();
-	String msg = GLOBAL_GET("debug/settings/backtrace/message");
+	String msg = GLOBAL_GET("debug/settings/crash_handler/message");
 
 	// Dump the backtrace to stderr with a message to the user
 	fprintf(stderr, "%s: Program crashed with signal %d\n", __FUNCTION__, sig);

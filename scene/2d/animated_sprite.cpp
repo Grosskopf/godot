@@ -223,7 +223,7 @@ void SpriteFrames::_bind_methods() {
 	ClassDB::bind_method(D_METHOD("set_animation_loop", "anim", "loop"), &SpriteFrames::set_animation_loop);
 	ClassDB::bind_method(D_METHOD("get_animation_loop", "anim"), &SpriteFrames::get_animation_loop);
 
-	ClassDB::bind_method(D_METHOD("add_frame", "anim", "frame", "atpos"), &SpriteFrames::add_frame, DEFVAL(-1));
+	ClassDB::bind_method(D_METHOD("add_frame", "anim", "frame", "at_position"), &SpriteFrames::add_frame, DEFVAL(-1));
 	ClassDB::bind_method(D_METHOD("get_frame_count", "anim"), &SpriteFrames::get_frame_count);
 	ClassDB::bind_method(D_METHOD("get_frame", "anim", "idx"), &SpriteFrames::get_frame);
 	ClassDB::bind_method(D_METHOD("set_frame", "anim", "idx", "txt"), &SpriteFrames::set_frame);
@@ -247,16 +247,16 @@ SpriteFrames::SpriteFrames() {
 	add_animation(SceneStringNames::get_singleton()->_default);
 }
 
-void AnimatedSprite::edit_set_pivot(const Point2 &p_pivot) {
+void AnimatedSprite::_edit_set_pivot(const Point2 &p_pivot) {
 
 	set_offset(p_pivot);
 }
 
-Point2 AnimatedSprite::edit_get_pivot() const {
+Point2 AnimatedSprite::_edit_get_pivot() const {
 
 	return get_offset();
 }
-bool AnimatedSprite::edit_has_pivot() const {
+bool AnimatedSprite::_edit_use_pivot() const {
 
 	return true;
 }
@@ -298,10 +298,8 @@ void AnimatedSprite::_validate_property(PropertyInfo &property) const {
 
 		property.hint = PROPERTY_HINT_SPRITE_FRAME;
 
-		if (frames->has_animation(animation)) {
+		if (frames->has_animation(animation) && frames->get_frame_count(animation) > 1) {
 			property.hint_string = "0," + itos(frames->get_frame_count(animation) - 1) + ",1";
-		} else {
-			property.hint_string = "0,0,0";
 		}
 	}
 }
@@ -511,17 +509,17 @@ bool AnimatedSprite::is_flipped_v() const {
 	return vflip;
 }
 
-Rect2 AnimatedSprite::get_item_rect() const {
+Rect2 AnimatedSprite::_edit_get_rect() const {
 
 	if (!frames.is_valid() || !frames->has_animation(animation) || frame < 0 || frame >= frames->get_frame_count(animation)) {
-		return Node2D::get_item_rect();
+		return Node2D::_edit_get_rect();
 	}
 
 	Ref<Texture> t;
 	if (animation)
 		t = frames->get_frame(animation, frame);
 	if (t.is_null())
-		return Node2D::get_item_rect();
+		return Node2D::_edit_get_rect();
 	Size2i s = t->get_size();
 
 	Point2 ofs = offset;
@@ -570,7 +568,7 @@ void AnimatedSprite::stop() {
 
 bool AnimatedSprite::is_playing() const {
 
-	return is_processing();
+	return playing;
 }
 
 void AnimatedSprite::_reset_timeout() {

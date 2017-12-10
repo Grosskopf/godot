@@ -149,7 +149,7 @@ void EditorSpatialGizmo::add_lines(const Vector<Vector3> &p_lines, const Ref<Mat
 			md = MAX(0, p_lines[i].length());
 		}
 		if (md) {
-			mesh->set_custom_aabb(Rect3(Vector3(-md, -md, -md), Vector3(md, md, md) * 2.0));
+			mesh->set_custom_aabb(AABB(Vector3(-md, -md, -md), Vector3(md, md, md) * 2.0));
 		}
 	}
 
@@ -196,7 +196,7 @@ void EditorSpatialGizmo::add_unscaled_billboard(const Ref<Material> &p_material,
 			md = MAX(0, vs[i].length());
 		}
 		if (md) {
-			mesh->set_custom_aabb(Rect3(Vector3(-md, -md, -md), Vector3(md, md, md) * 2.0));
+			mesh->set_custom_aabb(AABB(Vector3(-md, -md, -md), Vector3(md, md, md) * 2.0));
 		}
 	}
 
@@ -211,9 +211,10 @@ void EditorSpatialGizmo::add_unscaled_billboard(const Ref<Material> &p_material,
 	instances.push_back(ins);
 }
 
-void EditorSpatialGizmo::add_collision_triangles(const Ref<TriangleMesh> &p_tmesh) {
+void EditorSpatialGizmo::add_collision_triangles(const Ref<TriangleMesh> &p_tmesh, const AABB &p_bounds) {
 
 	collision_mesh = p_tmesh;
+	collision_mesh_bounds = p_bounds;
 }
 
 void EditorSpatialGizmo::add_collision_segments(const Vector<Vector3> &p_lines) {
@@ -269,7 +270,7 @@ void EditorSpatialGizmo::add_handles(const Vector<Vector3> &p_handles, bool p_bi
 			md = MAX(0, p_handles[i].length());
 		}
 		if (md) {
-			mesh->set_custom_aabb(Rect3(Vector3(-md, -md, -md), Vector3(md, md, md) * 2.0));
+			mesh->set_custom_aabb(AABB(Vector3(-md, -md, -md), Vector3(md, md, md) * 2.0));
 		}
 	}
 
@@ -297,11 +298,11 @@ void EditorSpatialGizmo::add_handles(const Vector<Vector3> &p_handles, bool p_bi
 	}
 }
 
-void EditorSpatialGizmo::add_solid_box(Ref<Material> &p_material, Vector3 size) {
+void EditorSpatialGizmo::add_solid_box(Ref<Material> &p_material, Vector3 p_size) {
 	ERR_FAIL_COND(!spatial_node);
 
 	CubeMesh cubem;
-	cubem.set_size(size);
+	cubem.set_size(p_size);
 	Ref<ArrayMesh> m = memnew(ArrayMesh);
 	m->add_surface_from_arrays(cubem.surface_get_primitive_type(0), cubem.surface_get_arrays(0));
 	m->surface_set_material(0, p_material);
@@ -357,6 +358,29 @@ bool EditorSpatialGizmo::intersect_frustum(const Camera *p_camera, const Vector<
 		}
 
 		return false;
+	}
+
+	if (collision_mesh_bounds.size != Vector3(0.0, 0.0, 0.0)) {
+		Transform t = spatial_node->get_global_transform();
+		const Plane *p = p_frustum.ptr();
+		int fc = p_frustum.size();
+
+		Vector3 mins = t.xform(collision_mesh_bounds.get_position());
+		Vector3 max = t.xform(collision_mesh_bounds.get_position() + collision_mesh_bounds.get_size());
+
+		bool any_out = false;
+
+		for (int j = 0; j < fc; j++) {
+
+			if (p[j].distance_to(mins) > 0 || p[j].distance_to(max) > 0) {
+
+				any_out = true;
+				break;
+			}
+		}
+
+		if (!any_out)
+			return true;
 	}
 
 	return false;
@@ -637,7 +661,7 @@ void EditorSpatialGizmo::_bind_methods() {
 	ClassDB::bind_method(D_METHOD("add_lines", "lines", "material", "billboard"), &EditorSpatialGizmo::add_lines, DEFVAL(false));
 	ClassDB::bind_method(D_METHOD("add_mesh", "mesh", "billboard", "skeleton"), &EditorSpatialGizmo::add_mesh, DEFVAL(false), DEFVAL(RID()));
 	ClassDB::bind_method(D_METHOD("add_collision_segments", "segments"), &EditorSpatialGizmo::add_collision_segments);
-	ClassDB::bind_method(D_METHOD("add_collision_triangles", "triangles"), &EditorSpatialGizmo::add_collision_triangles);
+	ClassDB::bind_method(D_METHOD("add_collision_triangles", "triangles", "bounds"), &EditorSpatialGizmo::add_collision_triangles);
 	ClassDB::bind_method(D_METHOD("add_unscaled_billboard", "material", "default_scale"), &EditorSpatialGizmo::add_unscaled_billboard, DEFVAL(1));
 	ClassDB::bind_method(D_METHOD("add_handles", "handles", "billboard", "secondary"), &EditorSpatialGizmo::add_handles, DEFVAL(false), DEFVAL(false));
 	ClassDB::bind_method(D_METHOD("set_spatial_node", "node"), &EditorSpatialGizmo::_set_spatial_node);
@@ -720,7 +744,7 @@ static float _find_closest_angle_to_half_pi_arc(const Vector3 &p_from, const Vec
 	}
 
 	//min_p = p_arc_xform.affine_inverse().xform(min_p);
-	float a = Vector2(min_p.x, -min_p.z).angle();
+	float a = (Math_PI * 0.5) - Vector2(min_p.x, -min_p.z).angle();
 	return a * 180.0 / Math_PI;
 }
 
@@ -869,7 +893,7 @@ void LightSpatialGizmo::redraw() {
 
 	if (Object::cast_to<SpotLight>(light)) {
 
-		Ref<Material> material = create_material("light_spot_material", gizmo_color, true);
+		Ref<Material> material = create_material("light_spot_material", gizmo_color);
 		Ref<Material> icon = create_icon_material("light_spot_icon", SpatialEditor::get_singleton()->get_icon("GizmoSpotLight", "EditorIcons"));
 
 		clear();
@@ -1249,8 +1273,10 @@ void MeshInstanceSpatialGizmo::redraw() {
 		return; //none
 
 	Ref<TriangleMesh> tm = m->generate_triangle_mesh();
-	if (tm.is_valid())
-		add_collision_triangles(tm);
+	if (tm.is_valid()) {
+		AABB aabb;
+		add_collision_triangles(tm, aabb);
+	}
 }
 
 MeshInstanceSpatialGizmo::MeshInstanceSpatialGizmo(MeshInstance *p_mesh) {
@@ -1310,7 +1336,7 @@ void SkeletonSpatialGizmo::redraw() {
 
 	weights[0] = 1;
 
-	Rect3 aabb;
+	AABB aabb;
 
 	Color bonecolor = Color(1.0, 0.4, 0.4, 0.3);
 	Color rootcolor = Color(0.4, 1.0, 0.4, 0.1);
@@ -1935,7 +1961,7 @@ void CollisionShapeSpatialGizmo::redraw() {
 
 		Ref<BoxShape> bs = s;
 		Vector<Vector3> lines;
-		Rect3 aabb;
+		AABB aabb;
 		aabb.position = -bs->get_extents();
 		aabb.size = aabb.position * -2;
 
@@ -2165,7 +2191,7 @@ void VisibilityNotifierGizmo::set_handle(int p_idx, Camera *p_camera, const Poin
 	//gt.orthonormalize();
 	Transform gi = gt.affine_inverse();
 
-	Rect3 aabb = notifier->get_aabb();
+	AABB aabb = notifier->get_aabb();
 	Vector3 ray_from = p_camera->project_ray_origin(p_point);
 	Vector3 ray_dir = p_camera->project_ray_normal(p_point);
 
@@ -2208,7 +2234,7 @@ void VisibilityNotifierGizmo::redraw() {
 	clear();
 
 	Vector<Vector3> lines;
-	Rect3 aabb = notifier->get_aabb();
+	AABB aabb = notifier->get_aabb();
 
 	for (int i = 0; i < 12; i++) {
 		Vector3 a, b;
@@ -2267,7 +2293,7 @@ void ParticlesGizmo::set_handle(int p_idx, Camera *p_camera, const Point2 &p_poi
 	bool move = p_idx >= 3;
 	p_idx = p_idx % 3;
 
-	Rect3 aabb = particles->get_visibility_aabb();
+	AABB aabb = particles->get_visibility_aabb();
 	Vector3 ray_from = p_camera->project_ray_origin(p_point);
 	Vector3 ray_dir = p_camera->project_ray_normal(p_point);
 
@@ -2321,7 +2347,7 @@ void ParticlesGizmo::redraw() {
 	clear();
 
 	Vector<Vector3> lines;
-	Rect3 aabb = particles->get_visibility_aabb();
+	AABB aabb = particles->get_visibility_aabb();
 
 	for (int i = 0; i < 12; i++) {
 		Vector3 a, b;
@@ -2394,7 +2420,7 @@ String ReflectionProbeGizmo::get_handle_name(int p_idx) const {
 }
 Variant ReflectionProbeGizmo::get_handle_value(int p_idx) const {
 
-	return Rect3(probe->get_extents(), probe->get_origin_offset());
+	return AABB(probe->get_extents(), probe->get_origin_offset());
 }
 void ReflectionProbeGizmo::set_handle(int p_idx, Camera *p_camera, const Point2 &p_point) {
 
@@ -2448,7 +2474,7 @@ void ReflectionProbeGizmo::set_handle(int p_idx, Camera *p_camera, const Point2 
 
 void ReflectionProbeGizmo::commit_handle(int p_idx, const Variant &p_restore, bool p_cancel) {
 
-	Rect3 restore = p_restore;
+	AABB restore = p_restore;
 
 	if (p_cancel) {
 		probe->set_extents(restore.position);
@@ -2473,7 +2499,7 @@ void ReflectionProbeGizmo::redraw() {
 	Vector<Vector3> internal_lines;
 	Vector3 extents = probe->get_extents();
 
-	Rect3 aabb;
+	AABB aabb;
 	aabb.position = -extents;
 	aabb.size = extents * 2;
 
@@ -2615,7 +2641,7 @@ void GIProbeGizmo::redraw() {
 
 	static const int subdivs[GIProbe::SUBDIV_MAX] = { 64, 128, 256, 512 };
 
-	Rect3 aabb = Rect3(-extents, extents * 2);
+	AABB aabb = AABB(-extents, extents * 2);
 	int subdiv = subdivs[probe->get_subdiv()];
 	float cell_size = aabb.get_longest_axis_size() / subdiv;
 

@@ -132,9 +132,10 @@ bool PhysicsBody2D::get_collision_layer_bit(int p_bit) const {
 	return get_collision_layer() & (1 << p_bit);
 }
 
-PhysicsBody2D::PhysicsBody2D(Physics2DServer::BodyMode p_mode)
-	: CollisionObject2D(Physics2DServer::get_singleton()->body_create(p_mode), false) {
+PhysicsBody2D::PhysicsBody2D(Physics2DServer::BodyMode p_mode) :
+		CollisionObject2D(Physics2DServer::get_singleton()->body_create(), false) {
 
+	Physics2DServer::get_singleton()->body_set_mode(get_rid(), p_mode);
 	collision_layer = 1;
 	collision_mask = 1;
 	set_pickable(false);
@@ -225,8 +226,8 @@ void StaticBody2D::_bind_methods() {
 	ADD_PROPERTY(PropertyInfo(Variant::REAL, "bounce", PROPERTY_HINT_RANGE, "0,1,0.01"), "set_bounce", "get_bounce");
 }
 
-StaticBody2D::StaticBody2D()
-	: PhysicsBody2D(Physics2DServer::BODY_MODE_STATIC) {
+StaticBody2D::StaticBody2D() :
+		PhysicsBody2D(Physics2DServer::BODY_MODE_STATIC) {
 
 	constant_angular_velocity = 0;
 	bounce = 0;
@@ -910,18 +911,18 @@ void RigidBody2D::_bind_methods() {
 	ADD_SIGNAL(MethodInfo("body_exited", PropertyInfo(Variant::OBJECT, "body")));
 	ADD_SIGNAL(MethodInfo("sleeping_state_changed"));
 
-	BIND_ENUM_CONSTANT(MODE_STATIC);
-	BIND_ENUM_CONSTANT(MODE_KINEMATIC);
 	BIND_ENUM_CONSTANT(MODE_RIGID);
+	BIND_ENUM_CONSTANT(MODE_STATIC);
 	BIND_ENUM_CONSTANT(MODE_CHARACTER);
+	BIND_ENUM_CONSTANT(MODE_KINEMATIC);
 
 	BIND_ENUM_CONSTANT(CCD_MODE_DISABLED);
 	BIND_ENUM_CONSTANT(CCD_MODE_CAST_RAY);
 	BIND_ENUM_CONSTANT(CCD_MODE_CAST_SHAPE);
 }
 
-RigidBody2D::RigidBody2D()
-	: PhysicsBody2D(Physics2DServer::BODY_MODE_RIGID) {
+RigidBody2D::RigidBody2D() :
+		PhysicsBody2D(Physics2DServer::BODY_MODE_RIGID) {
 
 	mode = MODE_RIGID;
 
@@ -999,7 +1000,7 @@ bool KinematicBody2D::move_and_collide(const Vector2 &p_motion, Collision &r_col
 
 Vector2 KinematicBody2D::move_and_slide(const Vector2 &p_linear_velocity, const Vector2 &p_floor_direction, float p_slope_stop_min_velocity, int p_max_slides, float p_floor_max_angle) {
 
-	Vector2 motion = (floor_velocity + p_linear_velocity) * get_fixed_process_delta_time();
+	Vector2 motion = (floor_velocity + p_linear_velocity) * get_physics_process_delta_time();
 	Vector2 lv = p_linear_velocity;
 
 	on_floor = false;
@@ -1027,7 +1028,10 @@ Vector2 KinematicBody2D::move_and_slide(const Vector2 &p_linear_velocity, const 
 					on_floor = true;
 					floor_velocity = collision.collider_vel;
 
-					if (collision.travel.length() < 1 && ABS((lv.x - floor_velocity.x)) < p_slope_stop_min_velocity) {
+					Vector2 rel_v = lv - floor_velocity;
+					Vector2 hv = rel_v - p_floor_direction * p_floor_direction.dot(rel_v);
+
+					if (collision.travel.length() < 1 && hv.length() < p_slope_stop_min_velocity) {
 						Transform2D gt = get_global_transform();
 						gt.elements[2] -= collision.travel;
 						set_global_transform(gt);
@@ -1140,8 +1144,8 @@ void KinematicBody2D::_bind_methods() {
 	ADD_PROPERTY(PropertyInfo(Variant::REAL, "collision/safe_margin", PROPERTY_HINT_RANGE, "0.001,256,0.001"), "set_safe_margin", "get_safe_margin");
 }
 
-KinematicBody2D::KinematicBody2D()
-	: PhysicsBody2D(Physics2DServer::BODY_MODE_KINEMATIC) {
+KinematicBody2D::KinematicBody2D() :
+		PhysicsBody2D(Physics2DServer::BODY_MODE_KINEMATIC) {
 
 	margin = 0.08;
 

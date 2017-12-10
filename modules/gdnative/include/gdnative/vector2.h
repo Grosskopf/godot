@@ -45,7 +45,16 @@ typedef struct {
 } godot_vector2;
 #endif
 
+// reduce extern "C" nesting for VS2013
+#ifdef __cplusplus
+}
+#endif
+
 #include <gdnative/gdnative.h>
+
+#ifdef __cplusplus
+extern "C" {
+#endif
 
 void GDAPI godot_vector2_new(godot_vector2 *r_dest, const godot_real p_x, const godot_real p_y);
 
@@ -97,7 +106,7 @@ godot_vector2 GDAPI godot_vector2_clamped(const godot_vector2 *p_self, const god
 
 godot_vector2 GDAPI godot_vector2_operator_add(const godot_vector2 *p_self, const godot_vector2 *p_b);
 
-godot_vector2 GDAPI godot_vector2_operator_substract(const godot_vector2 *p_self, const godot_vector2 *p_b);
+godot_vector2 GDAPI godot_vector2_operator_subtract(const godot_vector2 *p_self, const godot_vector2 *p_b);
 
 godot_vector2 GDAPI godot_vector2_operator_multiply_vector(const godot_vector2 *p_self, const godot_vector2 *p_b);
 

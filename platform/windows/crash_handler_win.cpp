@@ -29,6 +29,7 @@
 /*************************************************************************/
 #include "main/main.h"
 #include "os_windows.h"
+#include "project_settings.h"
 
 #ifdef CRASH_HANDLER_EXCEPTION
 
@@ -60,8 +61,8 @@ class symbol {
 	static const int max_name_len = 1024;
 
 public:
-	symbol(HANDLE process, DWORD64 address)
-		: sym((sym_type *)::operator new(sizeof(*sym) + max_name_len)) {
+	symbol(HANDLE process, DWORD64 address) :
+			sym((sym_type *)::operator new(sizeof(*sym) + max_name_len)) {
 		memset(sym, '\0', sizeof(*sym) + max_name_len);
 		sym->SizeOfStruct = sizeof(*sym);
 		sym->MaxNameLength = max_name_len;
@@ -84,8 +85,8 @@ class get_mod_info {
 	HANDLE process;
 
 public:
-	get_mod_info(HANDLE h)
-		: process(h) {}
+	get_mod_info(HANDLE h) :
+			process(h) {}
 
 	module_data operator()(HMODULE module) {
 		module_data ret;
@@ -116,7 +117,7 @@ DWORD CrashHandlerException(EXCEPTION_POINTERS *ep) {
 	DWORD cbNeeded;
 	std::vector<HMODULE> module_handles(1);
 
-	if (OS::get_singleton() == NULL || OS::get_singleton()->is_disable_crash_handler()) {
+	if (OS::get_singleton() == NULL || OS::get_singleton()->is_disable_crash_handler() || IsDebuggerPresent()) {
 		return EXCEPTION_CONTINUE_SEARCH;
 	}
 
@@ -159,7 +160,7 @@ DWORD CrashHandlerException(EXCEPTION_POINTERS *ep) {
 	IMAGE_NT_HEADERS *h = ImageNtHeader(base);
 	DWORD image_type = h->FileHeader.Machine;
 	int n = 0;
-	String msg = GLOBAL_GET("debug/settings/backtrace/message");
+	String msg = GLOBAL_GET("debug/settings/crash_handler/message");
 
 	fprintf(stderr, "Dumping the backtrace. %ls\n", msg.c_str());
 

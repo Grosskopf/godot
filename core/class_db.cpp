@@ -187,6 +187,25 @@ MethodDefinition D_METHOD(const char *p_name, const char *p_arg1, const char *p_
 	return md;
 }
 
+MethodDefinition D_METHOD(const char *p_name, const char *p_arg1, const char *p_arg2, const char *p_arg3, const char *p_arg4, const char *p_arg5, const char *p_arg6, const char *p_arg7, const char *p_arg8, const char *p_arg9, const char *p_arg10, const char *p_arg11) {
+
+	MethodDefinition md;
+	md.name = StaticCString::create(p_name);
+	md.args.resize(11);
+	md.args[0] = StaticCString::create(p_arg1);
+	md.args[1] = StaticCString::create(p_arg2);
+	md.args[2] = StaticCString::create(p_arg3);
+	md.args[3] = StaticCString::create(p_arg4);
+	md.args[4] = StaticCString::create(p_arg5);
+	md.args[5] = StaticCString::create(p_arg6);
+	md.args[6] = StaticCString::create(p_arg7);
+	md.args[7] = StaticCString::create(p_arg8);
+	md.args[8] = StaticCString::create(p_arg9);
+	md.args[9] = StaticCString::create(p_arg10);
+	md.args[10] = StaticCString::create(p_arg11);
+	return md;
+}
+
 #endif
 
 ClassDB::APIType ClassDB::current_api = API_CORE;
@@ -205,6 +224,7 @@ ClassDB::ClassInfo::ClassInfo() {
 	creation_func = NULL;
 	inherits_ptr = NULL;
 	disabled = false;
+	exposed = false;
 }
 ClassDB::ClassInfo::~ClassInfo() {
 }
@@ -1016,7 +1036,6 @@ bool ClassDB::get_property(Object *p_object, const StringName &p_property, Varia
 			r_value = *c;
 			return true;
 		}
-		//if (check->constant_map.fin)
 
 		check = check->inherits_ptr;
 	}
@@ -1137,24 +1156,6 @@ bool ClassDB::has_method(StringName p_class, StringName p_method, bool p_no_inhe
 			return true;
 		if (p_no_inheritance)
 			return false;
-		check = check->inherits_ptr;
-	}
-
-	return false;
-}
-
-bool ClassDB::get_setter_and_type_for_property(const StringName &p_class, const StringName &p_prop, StringName &r_class, StringName &r_setter) {
-
-	ClassInfo *type = classes.getptr(p_class);
-	ClassInfo *check = type;
-	while (check) {
-
-		if (check->property_setget.has(p_prop)) {
-			r_class = check->name;
-			r_setter = check->property_setget[p_prop].setter;
-			return true;
-		}
-
 		check = check->inherits_ptr;
 	}
 
@@ -1282,6 +1283,15 @@ bool ClassDB::is_class_enabled(StringName p_class) {
 
 	ERR_FAIL_COND_V(!ti, false);
 	return !ti->disabled;
+}
+
+bool ClassDB::is_class_exposed(StringName p_class) {
+
+	OBJTYPE_RLOCK;
+
+	ClassInfo *ti = classes.getptr(p_class);
+	ERR_FAIL_COND_V(!ti, false);
+	return ti->exposed;
 }
 
 StringName ClassDB::get_category(const StringName &p_node) {

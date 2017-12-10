@@ -69,6 +69,8 @@ public:
 	int get_render_priority() const;
 
 	virtual RID get_rid() const;
+
+	virtual Shader::Mode get_shader_mode() const = 0;
 	Material();
 	virtual ~Material();
 };
@@ -95,6 +97,8 @@ public:
 
 	void set_shader_param(const StringName &p_param, const Variant &p_value);
 	Variant get_shader_param(const StringName &p_param) const;
+
+	virtual Shader::Mode get_shader_mode() const;
 
 	ShaderMaterial();
 	~ShaderMaterial();
@@ -181,14 +185,15 @@ public:
 		FLAG_TRIPLANAR_USE_WORLD,
 		FLAG_AO_ON_UV2,
 		FLAG_USE_ALPHA_SCISSOR,
+		FLAG_ALBEDO_TEXTURE_FORCE_SRGB,
 		FLAG_MAX
 	};
 
 	enum DiffuseMode {
+		DIFFUSE_BURLEY,
 		DIFFUSE_LAMBERT,
 		DIFFUSE_LAMBERT_WRAP,
 		DIFFUSE_OREN_NAYAR,
-		DIFFUSE_BURLEY,
 		DIFFUSE_TOON,
 	};
 
@@ -215,6 +220,11 @@ public:
 		TEXTURE_CHANNEL_GRAYSCALE
 	};
 
+	enum EmissionOperator {
+		EMISSION_OP_ADD,
+		EMISSION_OP_MULTIPLY
+	};
+
 private:
 	union MaterialKey {
 
@@ -224,7 +234,7 @@ private:
 			uint64_t blend_mode : 2;
 			uint64_t depth_draw_mode : 2;
 			uint64_t cull_mode : 2;
-			uint64_t flags : 12;
+			uint64_t flags : 13;
 			uint64_t detail_blend_mode : 2;
 			uint64_t diffuse_mode : 3;
 			uint64_t specular_mode : 2;
@@ -232,6 +242,9 @@ private:
 			uint64_t deep_parallax : 1;
 			uint64_t billboard_mode : 2;
 			uint64_t grow : 1;
+			uint64_t proximity_fade : 1;
+			uint64_t distance_fade : 1;
+			uint64_t emission_op : 1;
 		};
 
 		uint64_t key;
@@ -274,6 +287,9 @@ private:
 		mk.billboard_mode = billboard_mode;
 		mk.deep_parallax = deep_parallax ? 1 : 0;
 		mk.grow = grow_enabled;
+		mk.proximity_fade = proximity_fade_enabled;
+		mk.distance_fade = distance_fade_enabled;
+		mk.emission_op = emission_op;
 
 		return mk;
 	}
@@ -308,6 +324,10 @@ private:
 		StringName uv1_blend_sharpness;
 		StringName uv2_blend_sharpness;
 		StringName grow;
+		StringName proximity_fade_distance;
+		StringName distance_fade_min;
+		StringName distance_fade_max;
+		StringName ao_light_affect;
 
 		StringName metallic_texture_channel;
 		StringName roughness_texture_channel;
@@ -351,6 +371,7 @@ private:
 	float point_size;
 	float alpha_scissor_threshold;
 	bool grow_enabled;
+	float ao_light_affect;
 	float grow;
 	int particles_anim_h_frames;
 	int particles_anim_v_frames;
@@ -370,6 +391,13 @@ private:
 	int deep_parallax_min_layers;
 	int deep_parallax_max_layers;
 
+	bool proximity_fade_enabled;
+	float proximity_fade_distance;
+
+	bool distance_fade_enabled;
+	float distance_fade_max_distance;
+	float distance_fade_min_distance;
+
 	BlendMode blend_mode;
 	BlendMode detail_blend_mode;
 	DepthDrawMode depth_draw_mode;
@@ -378,6 +406,7 @@ private:
 	SpecularMode specular_mode;
 	DiffuseMode diffuse_mode;
 	BillboardMode billboard_mode;
+	EmissionOperator emission_op;
 
 	TextureChannel metallic_texture_channel;
 	TextureChannel roughness_texture_channel;
@@ -428,6 +457,9 @@ public:
 
 	void set_rim_tint(float p_rim_tint);
 	float get_rim_tint() const;
+
+	void set_ao_light_affect(float p_ao_light_affect);
+	float get_ao_light_affect() const;
 
 	void set_clearcoat(float p_clearcoat);
 	float get_clearcoat() const;
@@ -491,6 +523,8 @@ public:
 
 	void set_texture(TextureParam p_param, const Ref<Texture> &p_texture);
 	Ref<Texture> get_texture(TextureParam p_param) const;
+	// Used only for shader material conversion
+	Ref<Texture> get_texture_by_name(StringName p_name) const;
 
 	void set_feature(Feature p_feature, bool p_enabled);
 	bool get_feature(Feature p_feature) const;
@@ -535,6 +569,24 @@ public:
 
 	void set_on_top_of_alpha();
 
+	void set_proximity_fade(bool p_enable);
+	bool is_proximity_fade_enabled() const;
+
+	void set_proximity_fade_distance(float p_distance);
+	float get_proximity_fade_distance() const;
+
+	void set_distance_fade(bool p_enable);
+	bool is_distance_fade_enabled() const;
+
+	void set_distance_fade_max_distance(float p_distance);
+	float get_distance_fade_max_distance() const;
+
+	void set_distance_fade_min_distance(float p_distance);
+	float get_distance_fade_min_distance() const;
+
+	void set_emission_operator(EmissionOperator p_op);
+	EmissionOperator get_emission_operator() const;
+
 	void set_metallic_texture_channel(TextureChannel p_channel);
 	TextureChannel get_metallic_texture_channel() const;
 	void set_roughness_texture_channel(TextureChannel p_channel);
@@ -549,6 +601,10 @@ public:
 	static void flush_changes();
 
 	static RID get_material_rid_for_2d(bool p_shaded, bool p_transparent, bool p_double_sided, bool p_cut_alpha, bool p_opaque_prepass);
+
+	RID get_shader_rid() const;
+
+	virtual Shader::Mode get_shader_mode() const;
 
 	SpatialMaterial();
 	virtual ~SpatialMaterial();
@@ -565,6 +621,7 @@ VARIANT_ENUM_CAST(SpatialMaterial::DiffuseMode)
 VARIANT_ENUM_CAST(SpatialMaterial::SpecularMode)
 VARIANT_ENUM_CAST(SpatialMaterial::BillboardMode)
 VARIANT_ENUM_CAST(SpatialMaterial::TextureChannel)
+VARIANT_ENUM_CAST(SpatialMaterial::EmissionOperator)
 
 //////////////////////
 

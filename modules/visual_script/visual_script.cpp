@@ -125,6 +125,7 @@ void VisualScriptNode::_bind_methods() {
 	ClassDB::bind_method(D_METHOD("get_visual_script"), &VisualScriptNode::get_visual_script);
 	ClassDB::bind_method(D_METHOD("set_default_input_value", "port_idx", "value"), &VisualScriptNode::set_default_input_value);
 	ClassDB::bind_method(D_METHOD("get_default_input_value", "port_idx"), &VisualScriptNode::get_default_input_value);
+	ClassDB::bind_method(D_METHOD("ports_changed_notify"), &VisualScriptNode::ports_changed_notify);
 	ClassDB::bind_method(D_METHOD("_set_default_input_values", "values"), &VisualScriptNode::_set_default_input_values);
 	ClassDB::bind_method(D_METHOD("_get_default_input_values"), &VisualScriptNode::_get_default_input_values);
 
@@ -423,7 +424,7 @@ Ref<VisualScriptNode> VisualScript::get_node(const StringName &p_func, int p_id)
 	return func.nodes[p_id].node;
 }
 
-void VisualScript::set_node_pos(const StringName &p_func, int p_id, const Point2 &p_pos) {
+void VisualScript::set_node_position(const StringName &p_func, int p_id, const Point2 &p_pos) {
 
 	ERR_FAIL_COND(instances.size());
 	ERR_FAIL_COND(!functions.has(p_func));
@@ -433,7 +434,7 @@ void VisualScript::set_node_pos(const StringName &p_func, int p_id, const Point2
 	func.nodes[p_id].pos = p_pos;
 }
 
-Point2 VisualScript::get_node_pos(const StringName &p_func, int p_id) const {
+Point2 VisualScript::get_node_position(const StringName &p_func, int p_id) const {
 
 	ERR_FAIL_COND_V(!functions.has(p_func), Point2());
 	const Function &func = functions[p_func];
@@ -973,11 +974,6 @@ bool VisualScript::is_tool() const {
 	return false;
 }
 
-String VisualScript::get_node_type() const {
-
-	return String();
-}
-
 ScriptLanguage *VisualScript::get_language() const {
 
 	return VisualScriptLanguage::singleton;
@@ -1273,14 +1269,14 @@ void VisualScript::_bind_methods() {
 	ClassDB::bind_method(D_METHOD("set_function_scroll", "name", "ofs"), &VisualScript::set_function_scroll);
 	ClassDB::bind_method(D_METHOD("get_function_scroll", "name"), &VisualScript::get_function_scroll);
 
-	ClassDB::bind_method(D_METHOD("add_node", "func", "id", "node", "pos"), &VisualScript::add_node, DEFVAL(Point2()));
+	ClassDB::bind_method(D_METHOD("add_node", "func", "id", "node", "position"), &VisualScript::add_node, DEFVAL(Point2()));
 	ClassDB::bind_method(D_METHOD("remove_node", "func", "id"), &VisualScript::remove_node);
 	ClassDB::bind_method(D_METHOD("get_function_node_id", "name"), &VisualScript::get_function_node_id);
 
 	ClassDB::bind_method(D_METHOD("get_node", "func", "id"), &VisualScript::get_node);
 	ClassDB::bind_method(D_METHOD("has_node", "func", "id"), &VisualScript::has_node);
-	ClassDB::bind_method(D_METHOD("set_node_pos", "func", "id", "pos"), &VisualScript::set_node_pos);
-	ClassDB::bind_method(D_METHOD("get_node_pos", "func", "id"), &VisualScript::get_node_pos);
+	ClassDB::bind_method(D_METHOD("set_node_position", "func", "id", "position"), &VisualScript::set_node_position);
+	ClassDB::bind_method(D_METHOD("get_node_position", "func", "id"), &VisualScript::get_node_position);
 
 	ClassDB::bind_method(D_METHOD("sequence_connect", "func", "from_node", "from_output", "to_node"), &VisualScript::sequence_connect);
 	ClassDB::bind_method(D_METHOD("sequence_disconnect", "func", "from_node", "from_output", "to_node"), &VisualScript::sequence_disconnect);
@@ -1438,7 +1434,7 @@ void VisualScriptInstance::_dependency_step(VisualScriptNodeInstance *node, int 
 	if (!node->dependencies.empty()) {
 
 		int dc = node->dependencies.size();
-		VisualScriptNodeInstance **deps = node->dependencies.ptr();
+		VisualScriptNodeInstance **deps = node->dependencies.ptrw();
 
 		for (int i = 0; i < dc; i++) {
 
@@ -1530,7 +1526,7 @@ Variant VisualScriptInstance::_call_internal(const StringName &p_method, void *p
 			if (!node->dependencies.empty()) {
 
 				int dc = node->dependencies.size();
-				VisualScriptNodeInstance **deps = node->dependencies.ptr();
+				VisualScriptNodeInstance **deps = node->dependencies.ptrw();
 
 				for (int i = 0; i < dc; i++) {
 
@@ -1630,7 +1626,7 @@ Variant VisualScriptInstance::_call_internal(const StringName &p_method, void *p
 				state->flow_stack_pos = flow_stack_pos;
 				state->stack.resize(p_stack_size);
 				state->pass = p_pass;
-				copymem(state->stack.ptr(), p_stack, p_stack_size);
+				copymem(state->stack.ptrw(), p_stack, p_stack_size);
 				//step 2, run away, return directly
 				r_error.error = Variant::CallError::CALL_OK;
 
@@ -2008,8 +2004,8 @@ void VisualScriptInstance::create(const Ref<VisualScript> &p_script, Object *p_o
 		Node *node = Object::cast_to<Node>(p_owner);
 		if (p_script->functions.has("_process"))
 			node->set_process(true);
-		if (p_script->functions.has("_fixed_process"))
-			node->set_fixed_process(true);
+		if (p_script->functions.has("_physics_process"))
+			node->set_physics_process(true);
 		if (p_script->functions.has("_input"))
 			node->set_process_input(true);
 		if (p_script->functions.has("_unhandled_input"))
@@ -2051,6 +2047,7 @@ void VisualScriptInstance::create(const Ref<VisualScript> &p_script, Object *p_o
 			function.argument_count = func_node->get_argument_count();
 			function.max_stack += function.argument_count;
 			function.flow_stack_size = func_node->is_stack_less() ? 0 : func_node->get_stack_size();
+			max_input_args = MAX(max_input_args, function.argument_count);
 		}
 
 		//multiple passes are required to set up this complex thing..
@@ -2281,7 +2278,7 @@ Variant VisualScriptFunctionState::_signal_callback(const Variant **p_args, int 
 
 	*working_mem = args; //arguments go to working mem.
 
-	Variant ret = instance->_call_internal(function, stack.ptr(), stack.size(), node, flow_stack_pos, pass, true, r_error);
+	Variant ret = instance->_call_internal(function, stack.ptrw(), stack.size(), node, flow_stack_pos, pass, true, r_error);
 	function = StringName(); //invalidate
 	return ret;
 }
@@ -2293,7 +2290,7 @@ void VisualScriptFunctionState::connect_to_signal(Object *p_obj, const String &p
 		binds.push_back(p_binds[i]);
 	}
 	binds.push_back(Ref<VisualScriptFunctionState>(this)); //add myself on the back to avoid dying from unreferencing
-	p_obj->connect(p_signal, this, "_signal_callback", binds);
+	p_obj->connect(p_signal, this, "_signal_callback", binds, CONNECT_ONESHOT);
 }
 
 bool VisualScriptFunctionState::is_valid() const {
@@ -2323,7 +2320,7 @@ Variant VisualScriptFunctionState::resume(Array p_args) {
 
 	*working_mem = p_args; //arguments go to working mem.
 
-	Variant ret = instance->_call_internal(function, stack.ptr(), stack.size(), node, flow_stack_pos, pass, true, r_error);
+	Variant ret = instance->_call_internal(function, stack.ptrw(), stack.size(), node, flow_stack_pos, pass, true, r_error);
 	function = StringName(); //invalidate
 	return ret;
 }
@@ -2410,6 +2407,10 @@ Script *VisualScriptLanguage::create_script() const {
 bool VisualScriptLanguage::has_named_classes() const {
 
 	return false;
+}
+bool VisualScriptLanguage::supports_builtin_mode() const {
+
+	return true;
 }
 int VisualScriptLanguage::find_function(const String &p_function, const String &p_code) const {
 
@@ -2642,6 +2643,11 @@ void VisualScriptLanguage::add_register_func(const String &p_name, VisualScriptN
 
 	ERR_FAIL_COND(register_funcs.has(p_name));
 	register_funcs[p_name] = p_func;
+}
+
+void VisualScriptLanguage::remove_register_func(const String &p_name) {
+	ERR_FAIL_COND(!register_funcs.has(p_name));
+	register_funcs.erase(p_name);
 }
 
 Ref<VisualScriptNode> VisualScriptLanguage::create_node_from_name(const String &p_name) {

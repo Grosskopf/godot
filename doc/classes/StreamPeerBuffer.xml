@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="UTF-8" ?>
-<class name="StreamPeerBuffer" inherits="StreamPeer" category="Core" version="3.0.alpha.custom_build">
+<class name="StreamPeerBuffer" inherits="StreamPeer" category="Core" version="3.0-beta">
 	<brief_description>
 	</brief_description>
 	<description>
@@ -27,7 +27,7 @@
 			<description>
 			</description>
 		</method>
-		<method name="get_pos" qualifiers="const">
+		<method name="get_position" qualifiers="const">
 			<return type="int">
 			</return>
 			<description>
@@ -50,7 +50,7 @@
 		<method name="seek">
 			<return type="void">
 			</return>
-			<argument index="0" name="pos" type="int">
+			<argument index="0" name="position" type="int">
 			</argument>
 			<description>
 			</description>

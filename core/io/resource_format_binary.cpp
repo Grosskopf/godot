@@ -52,7 +52,7 @@ enum {
 	VARIANT_VECTOR3 = 12,
 	VARIANT_PLANE = 13,
 	VARIANT_QUAT = 14,
-	VARIANT_RECT3 = 15,
+	VARIANT_AABB = 15,
 	VARIANT_MATRIX3 = 16,
 	VARIANT_TRANSFORM = 17,
 	VARIANT_MATRIX32 = 18,
@@ -84,8 +84,10 @@ enum {
 	OBJECT_INTERNAL_RESOURCE = 2,
 	OBJECT_EXTERNAL_RESOURCE_INDEX = 3,
 	//version 2: added 64 bits support for float and int
-	FORMAT_VERSION = 2,
-	FORMAT_VERSION_CAN_RENAME_DEPS = 1
+	//version 3: changed nodepath encoding
+	FORMAT_VERSION = 3,
+	FORMAT_VERSION_CAN_RENAME_DEPS = 1,
+	FORMAT_VERSION_NO_NODEPATH_PROPERTY = 3,
 
 };
 
@@ -196,9 +198,9 @@ Error ResourceInteractiveLoaderBinary::parse_variant(Variant &r_v) {
 			r_v = v;
 
 		} break;
-		case VARIANT_RECT3: {
+		case VARIANT_AABB: {
 
-			Rect3 v;
+			AABB v;
 			v.position.x = f->get_real();
 			v.position.y = f->get_real();
 			v.position.z = f->get_real();
@@ -267,22 +269,22 @@ Error ResourceInteractiveLoaderBinary::parse_variant(Variant &r_v) {
 
 			Vector<StringName> names;
 			Vector<StringName> subnames;
-			StringName property;
 			bool absolute;
 
 			int name_count = f->get_16();
 			uint32_t subname_count = f->get_16();
 			absolute = subname_count & 0x8000;
 			subname_count &= 0x7FFF;
+			if (ver_format < FORMAT_VERSION_NO_NODEPATH_PROPERTY) {
+				subname_count += 1; // has a property field, so we should count it as well
+			}
 
 			for (int i = 0; i < name_count; i++)
 				names.push_back(_get_string());
 			for (uint32_t i = 0; i < subname_count; i++)
 				subnames.push_back(_get_string());
-			property = _get_string();
 
-			NodePath np = NodePath(names, subnames, absolute, property);
-			//print_line("got path: "+String(np));
+			NodePath np = NodePath(names, subnames, absolute);
 
 			r_v = np;
 
@@ -640,7 +642,6 @@ Error ResourceInteractiveLoaderBinary::poll() {
 
 		String path = external_resources[s].path;
 
-		print_line("load external res: " + path);
 		if (remaps.has(path)) {
 			path = remaps[path];
 		}
@@ -705,8 +706,6 @@ Error ResourceInteractiveLoaderBinary::poll() {
 	f->seek(offset);
 
 	String t = get_unicode_string();
-
-	//	print_line("loading resource of type "+t+" path is "+path);
 
 	Object *obj = ClassDB::instance(t);
 	if (!obj) {
@@ -860,7 +859,7 @@ void ResourceInteractiveLoaderBinary::open(FileAccess *p_f) {
 
 	uint32_t ver_major = f->get_32();
 	uint32_t ver_minor = f->get_32();
-	uint32_t ver_format = f->get_32();
+	ver_format = f->get_32();
 
 	print_bl("big endian: " + itos(big_endian));
 #ifdef BIG_ENDIAN_ENABLED
@@ -906,20 +905,6 @@ void ResourceInteractiveLoaderBinary::open(FileAccess *p_f) {
 		er.path = get_unicode_string();
 		external_resources.push_back(er);
 	}
-
-	//see if the exporter has different set of external resources for more efficient loading
-	/*
-	String preload_depts = "deps/"+res_path.md5_text();
-	if (Globals::get_singleton()->has(preload_depts)) {
-		external_resources.clear();
-		//ignore external resources and use these
-		NodePath depts=Globals::get_singleton()->get(preload_depts);
-		external_resources.resize(depts.get_name_count());
-		for(int i=0;i<depts.get_name_count();i++) {
-			external_resources[i].path=depts.get_name(i);
-		}
-		print_line(res_path+" - EXTERNAL RESOURCES: "+itos(external_resources.size()));
-	}*/
 
 	print_bl("ext resources: " + itos(ext_resources_size));
 	uint32_t int_resources_size = f->get_32();
@@ -1179,7 +1164,7 @@ Error ResourceFormatLoaderBinary::rename_dependencies(const String &p_path, cons
 
 	save_ustring(fw, get_ustring(f)); //type
 
-	size_t md_ofs = f->get_pos();
+	size_t md_ofs = f->get_position();
 	size_t importmd_ofs = f->get_64();
 	fw->store_64(0); //metadata offset
 
@@ -1227,7 +1212,7 @@ Error ResourceFormatLoaderBinary::rename_dependencies(const String &p_path, cons
 		save_ustring(fw, path);
 	}
 
-	int64_t size_diff = (int64_t)fw->get_pos() - (int64_t)f->get_pos();
+	int64_t size_diff = (int64_t)fw->get_position() - (int64_t)f->get_position();
 
 	//internal resources
 	uint32_t int_resources_size = f->get_32();
@@ -1392,10 +1377,10 @@ void ResourceFormatSaverBinaryInstance::write_variant(const Variant &p_property,
 			f->store_real(val.w);
 
 		} break;
-		case Variant::RECT3: {
+		case Variant::AABB: {
 
-			f->store_32(VARIANT_RECT3);
-			Rect3 val = p_property;
+			f->store_32(VARIANT_AABB);
+			AABB val = p_property;
 			f->store_real(val.position.x);
 			f->store_real(val.position.y);
 			f->store_real(val.position.z);
@@ -1472,7 +1457,6 @@ void ResourceFormatSaverBinaryInstance::write_variant(const Variant &p_property,
 				f->store_32(get_string_index(np.get_name(i)));
 			for (int i = 0; i < np.get_subname_count(); i++)
 				f->store_32(get_string_index(np.get_subname(i)));
-			f->store_32(get_string_index(np.get_property()));
 
 		} break;
 		case Variant::_RID: {
@@ -1703,7 +1687,6 @@ void ResourceFormatSaverBinaryInstance::_find_resources(const Variant &p_variant
 				get_string_index(np.get_name(i));
 			for (int i = 0; i < np.get_subname_count(); i++)
 				get_string_index(np.get_subname(i));
-			get_string_index(np.get_property());
 
 		} break;
 		default: {}
@@ -1880,7 +1863,7 @@ Error ResourceFormatSaverBinaryInstance::save(const String &p_path, const RES &p
 		} else {
 			save_unicode_string(r->get_path()); //actual external
 		}
-		ofs_pos.push_back(f->get_pos());
+		ofs_pos.push_back(f->get_position());
 		f->store_64(0); //offset in 64 bits
 	}
 
@@ -1891,7 +1874,7 @@ Error ResourceFormatSaverBinaryInstance::save(const String &p_path, const RES &p
 
 		ResourceData &rd = E->get();
 
-		ofs_table.push_back(f->get_pos());
+		ofs_table.push_back(f->get_position());
 		save_unicode_string(rd.type);
 		f->store_32(rd.properties.size());
 

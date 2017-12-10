@@ -45,9 +45,18 @@ typedef struct {
 } godot_dictionary;
 #endif
 
+// reduce extern "C" nesting for VS2013
+#ifdef __cplusplus
+}
+#endif
+
 #include <gdnative/array.h>
 #include <gdnative/gdnative.h>
 #include <gdnative/variant.h>
+
+#ifdef __cplusplus
+extern "C" {
+#endif
 
 void GDAPI godot_dictionary_new(godot_dictionary *r_dest);
 void GDAPI godot_dictionary_new_copy(godot_dictionary *r_dest, const godot_dictionary *p_src);
@@ -75,6 +84,8 @@ godot_variant GDAPI godot_dictionary_get(const godot_dictionary *p_self, const g
 void GDAPI godot_dictionary_set(godot_dictionary *p_self, const godot_variant *p_key, const godot_variant *p_value);
 
 godot_variant GDAPI *godot_dictionary_operator_index(godot_dictionary *p_self, const godot_variant *p_key);
+
+const godot_variant GDAPI *godot_dictionary_operator_index_const(const godot_dictionary *p_self, const godot_variant *p_key);
 
 godot_variant GDAPI *godot_dictionary_next(const godot_dictionary *p_self, const godot_variant *p_key);
 
