@@ -160,6 +160,7 @@ opts.Add(BoolVariable('xml', "XML format support for resources", True))
 
 # Advanced options
 opts.Add(BoolVariable('disable_3d', "Disable 3D nodes for smaller executable", False))
+opts.Add(BoolVariable('holographic', "Enables rendering over ANGLE for Microsoft Hololens", False))
 opts.Add(BoolVariable('disable_advanced_gui', "Disable advance 3D gui nodes and behaviors", False))
 opts.Add('extra_suffix', "Custom extra suffix added to the base filename of all generated binary files", '')
 opts.Add('unix_global_settings_path', "UNIX-specific path to system-wide settings. Currently only used for templates", '')
@@ -424,6 +425,8 @@ if selected_platform in platform_list:
         env.Append(CPPFLAGS=['-DTOOLS_ENABLED'])
     if env['disable_3d']:
         env.Append(CPPFLAGS=['-D_3D_DISABLED'])
+    if env['holographic']:
+        env.Append(CPPFLAGS=['-DHOLOGRAPHIC'])
     if env['gdscript']:
         env.Append(CPPFLAGS=['-DGDSCRIPT_ENABLED'])
     if env['disable_advanced_gui']:
@@ -440,12 +443,11 @@ if selected_platform in platform_list:
 
     if (True): # FIXME: detect GLES3
         env.Append( BUILDERS = { 'GLES3_GLSL' : env.Builder(action = methods.build_gles3_headers, suffix = 'glsl.gen.h',src_suffix = '.glsl') } )
-
     scons_cache_path = os.environ.get("SCONS_CACHE")
     if scons_cache_path != None:
-        CacheDir(scons_cache_path)
-        print("Scons cache enabled... (path: '" + scons_cache_path + "')")
-
+         CacheDir(scons_cache_path)
+         print("Scons cache enabled... (path: '" + scons_cache_path + "')")
+         
     Export('env')
 
     # build subdirs, the build order is dependent on link order.
