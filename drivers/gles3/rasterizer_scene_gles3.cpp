@@ -1135,6 +1135,7 @@ bool RasterizerSceneGLES3::_setup_material(RasterizerStorageGLES3::Material *p_m
 		state.current_depth_draw = p_material->shader->spatial.depth_draw_mode;
 	}
 
+
 #if 0
 	//blend mode
 	if (state.current_blend_mode!=p_material->shader->spatial.blend_mode) {
@@ -1223,8 +1224,7 @@ bool RasterizerSceneGLES3::_setup_material(RasterizerStorageGLES3::Material *p_m
 			}
 
 		} else {
-
-			t = t->get_ptr(); //resolve for proxies
+            t = t->get_ptr(); //resolve for proxies
 #ifdef TOOLS_ENABLED
 			if (t->detect_3d) {
 				t->detect_3d(t->detect_3d_ud);
@@ -1468,21 +1468,28 @@ void RasterizerSceneGLES3::_render_geometry(RenderList::Element *e) {
 #ifdef DEBUG_ENABLED
 
 			if (state.debug_draw == VS::VIEWPORT_DEBUG_DRAW_WIREFRAME && s->array_wireframe_id) {
-
+#ifdef HOLOGRAPHIC
+                glDrawElementsInstancedANGLE(GL_LINES, s->index_wireframe_len, GL_UNSIGNED_INT, 0,1);
+#else
 				glDrawElements(GL_LINES, s->index_wireframe_len, GL_UNSIGNED_INT, 0);
+#endif
 				storage->info.render.vertices_count += s->index_array_len;
 			} else
 #endif
-					if (s->index_array_len > 0) {
-
-				glDrawElements(gl_primitive[s->primitive], s->index_array_len, (s->array_len >= (1 << 16)) ? GL_UNSIGNED_INT : GL_UNSIGNED_SHORT, 0);
-
+			if (s->index_array_len > 0) {
+#ifdef HOLOGRAPHIC
+				glDrawElementsInstancedANGLE(gl_primitive[s->primitive], s->index_array_len, (s->array_len >= (1 << 16)) ? GL_UNSIGNED_INT : GL_UNSIGNED_SHORT, 0,1);
+#else
+                glDrawElements(gl_primitive[s->primitive], s->index_array_len, (s->array_len >= (1 << 16)) ? GL_UNSIGNED_INT : GL_UNSIGNED_SHORT, 0);
+#endif
 				storage->info.render.vertices_count += s->index_array_len;
 
 			} else {
-
+#ifdef HOLOGRAPHIC
+				glDrawArraysInstancedANGLE(gl_primitive[s->primitive], 0, s->array_len,1);
+#else
 				glDrawArrays(gl_primitive[s->primitive], 0, s->array_len);
-
+#endif
 				storage->info.render.vertices_count += s->array_len;
 			}
 
@@ -1497,20 +1504,28 @@ void RasterizerSceneGLES3::_render_geometry(RenderList::Element *e) {
 #ifdef DEBUG_ENABLED
 
 			if (state.debug_draw == VS::VIEWPORT_DEBUG_DRAW_WIREFRAME && s->array_wireframe_id) {
-
-				glDrawElementsInstanced(GL_LINES, s->index_wireframe_len, GL_UNSIGNED_INT, 0, amount);
+#ifdef HOLOGRAPHIC
+				glDrawElementsInstancedANGLE(GL_LINES, s->index_wireframe_len, GL_UNSIGNED_INT, 0, amount);
+#else
+                glDrawElementsInstanced(GL_LINES, s->index_wireframe_len, GL_UNSIGNED_INT, 0, amount);
+#endif
 				storage->info.render.vertices_count += s->index_array_len * amount;
 			} else
 #endif
-					if (s->index_array_len > 0) {
-
-				glDrawElementsInstanced(gl_primitive[s->primitive], s->index_array_len, (s->array_len >= (1 << 16)) ? GL_UNSIGNED_INT : GL_UNSIGNED_SHORT, 0, amount);
-
+            if (s->index_array_len > 0) {
+#ifdef HOLOGRAPHIC
+				glDrawElementsInstancedANGLE(gl_primitive[s->primitive], s->index_array_len, (s->array_len >= (1 << 16)) ? GL_UNSIGNED_INT : GL_UNSIGNED_SHORT, 0, amount);
+#else
+                glDrawElementsInstanced(gl_primitive[s->primitive], s->index_array_len, (s->array_len >= (1 << 16)) ? GL_UNSIGNED_INT : GL_UNSIGNED_SHORT, 0, amount);
+#endif
 				storage->info.render.vertices_count += s->index_array_len * amount;
 
 			} else {
-
+#ifdef HOLOGRAPHIC
+				glDrawArraysInstancedANGLE(gl_primitive[s->primitive], 0, s->array_len, amount);
+#else
 				glDrawArraysInstanced(gl_primitive[s->primitive], 0, s->array_len, amount);
+#endif
 
 				storage->info.render.vertices_count += s->array_len * amount;
 			}
@@ -1630,7 +1645,11 @@ void RasterizerSceneGLES3::_render_geometry(RenderList::Element *e) {
 				glEnableVertexAttribArray(VS::ARRAY_VERTEX);
 				glBufferSubData(GL_ARRAY_BUFFER, buf_ofs, sizeof(Vector3) * vertices, c.vertices.ptr());
 				glVertexAttribPointer(VS::ARRAY_VERTEX, 3, GL_FLOAT, false, sizeof(Vector3), ((uint8_t *)NULL) + buf_ofs);
-				glDrawArrays(gl_primitive[c.primitive], 0, c.vertices.size());
+#ifdef HOLOGRAPHIC
+                glDrawArraysInstancedANGLE(gl_primitive[c.primitive], 0, c.vertices.size(),1);
+#else
+                glDrawArrays(gl_primitive[c.primitive], 0, c.vertices.size());
+#endif           
 			}
 
 			if (restore_tex) {
@@ -1675,21 +1694,28 @@ void RasterizerSceneGLES3::_render_geometry(RenderList::Element *e) {
 #ifdef DEBUG_ENABLED
 
 					if (state.debug_draw == VS::VIEWPORT_DEBUG_DRAW_WIREFRAME && s->array_wireframe_id) {
-
-						glDrawElementsInstanced(GL_LINES, s->index_wireframe_len, GL_UNSIGNED_INT, 0, amount - split);
+#ifdef HOLOGRAPHIC
+						glDrawElementsInstancedANGLE(GL_LINES, s->index_wireframe_len, GL_UNSIGNED_INT, 0, amount - split);
+#else
+                        glDrawElementsInstanced(GL_LINES, s->index_wireframe_len, GL_UNSIGNED_INT, 0, amount - split);
+#endif
 						storage->info.render.vertices_count += s->index_array_len * (amount - split);
 					} else
 #endif
 							if (s->index_array_len > 0) {
-
-						glDrawElementsInstanced(gl_primitive[s->primitive], s->index_array_len, (s->array_len >= (1 << 16)) ? GL_UNSIGNED_INT : GL_UNSIGNED_SHORT, 0, amount - split);
-
+#ifdef HOLOGRAPHIC
+                        glDrawElementsInstancedANGLE(gl_primitive[s->primitive], s->index_array_len, (s->array_len >= (1 << 16)) ? GL_UNSIGNED_INT : GL_UNSIGNED_SHORT, 0, amount - split);
+#else
+                        glDrawElementsInstanced(gl_primitive[s->primitive], s->index_array_len, (s->array_len >= (1 << 16)) ? GL_UNSIGNED_INT : GL_UNSIGNED_SHORT, 0, amount - split);
+#endif
 						storage->info.render.vertices_count += s->index_array_len * (amount - split);
 
 					} else {
-
-						glDrawArraysInstanced(gl_primitive[s->primitive], 0, s->array_len, amount - split);
-
+#ifdef HOLOGRAPHIC
+						glDrawArraysInstancedANGLE(gl_primitive[s->primitive], 0, s->array_len, amount - split);
+#else
+                        glDrawArraysInstanced(gl_primitive[s->primitive], 0, s->array_len, amount - split);
+#endif
 						storage->info.render.vertices_count += s->array_len * (amount - split);
 					}
 				}
@@ -1713,21 +1739,28 @@ void RasterizerSceneGLES3::_render_geometry(RenderList::Element *e) {
 #ifdef DEBUG_ENABLED
 
 					if (state.debug_draw == VS::VIEWPORT_DEBUG_DRAW_WIREFRAME && s->array_wireframe_id) {
-
-						glDrawElementsInstanced(GL_LINES, s->index_wireframe_len, GL_UNSIGNED_INT, 0, split);
+#ifdef HOLOGRAPHIC
+						glDrawElementsInstancedANGLE(GL_LINES, s->index_wireframe_len, GL_UNSIGNED_INT, 0, split);
+#else
+                        glDrawElementsInstanced(GL_LINES, s->index_wireframe_len, GL_UNSIGNED_INT, 0, split);
+#endif
 						storage->info.render.vertices_count += s->index_array_len * split;
 					} else
 #endif
 							if (s->index_array_len > 0) {
-
-						glDrawElementsInstanced(gl_primitive[s->primitive], s->index_array_len, (s->array_len >= (1 << 16)) ? GL_UNSIGNED_INT : GL_UNSIGNED_SHORT, 0, split);
-
+#ifdef HOLOGRAPHIC
+                        glDrawElementsInstancedANGLE(gl_primitive[s->primitive], s->index_array_len, (s->array_len >= (1 << 16)) ? GL_UNSIGNED_INT : GL_UNSIGNED_SHORT, 0, split);
+#else
+                        glDrawElementsInstanced(gl_primitive[s->primitive], s->index_array_len, (s->array_len >= (1 << 16)) ? GL_UNSIGNED_INT : GL_UNSIGNED_SHORT, 0, split);
+#endif
 						storage->info.render.vertices_count += s->index_array_len * split;
 
 					} else {
-
+#ifdef HOLOGRAPHIC
+						glDrawArraysInstancedANGLE(gl_primitive[s->primitive], 0, s->array_len, split);
+#else
 						glDrawArraysInstanced(gl_primitive[s->primitive], 0, s->array_len, split);
-
+#endif
 						storage->info.render.vertices_count += s->array_len * split;
 					}
 				}
@@ -1737,21 +1770,28 @@ void RasterizerSceneGLES3::_render_geometry(RenderList::Element *e) {
 #ifdef DEBUG_ENABLED
 
 				if (state.debug_draw == VS::VIEWPORT_DEBUG_DRAW_WIREFRAME && s->array_wireframe_id) {
-
-					glDrawElementsInstanced(GL_LINES, s->index_wireframe_len, GL_UNSIGNED_INT, 0, amount);
+#ifdef HOLOGRAPHIC
+					glDrawElementsInstancedANGLE(GL_LINES, s->index_wireframe_len, GL_UNSIGNED_INT, 0, amount);
+#else
+                    glDrawElementsInstanced(GL_LINES, s->index_wireframe_len, GL_UNSIGNED_INT, 0, amount);
+#endif
 					storage->info.render.vertices_count += s->index_array_len * amount;
 				} else
 #endif
 						if (s->index_array_len > 0) {
-
-					glDrawElementsInstanced(gl_primitive[s->primitive], s->index_array_len, (s->array_len >= (1 << 16)) ? GL_UNSIGNED_INT : GL_UNSIGNED_SHORT, 0, amount);
-
+#ifdef HOLOGRAPHIC
+					glDrawElementsInstancedANGLE(gl_primitive[s->primitive], s->index_array_len, (s->array_len >= (1 << 16)) ? GL_UNSIGNED_INT : GL_UNSIGNED_SHORT, 0, amount);
+#else
+                    glDrawElementsInstanced(gl_primitive[s->primitive], s->index_array_len, (s->array_len >= (1 << 16)) ? GL_UNSIGNED_INT : GL_UNSIGNED_SHORT, 0, amount);
+#endif
 					storage->info.render.vertices_count += s->index_array_len * amount;
 
 				} else {
-
+#ifdef HOLOGRAPHIC
+					glDrawArraysInstancedANGLE(gl_primitive[s->primitive], 0, s->array_len, amount);
+#else
 					glDrawArraysInstanced(gl_primitive[s->primitive], 0, s->array_len, amount);
-
+#endif
 					storage->info.render.vertices_count += s->array_len * amount;
 				}
 			}
@@ -1862,7 +1902,7 @@ void RasterizerSceneGLES3::_setup_light(RenderList::Element *e, const Transform 
 
 			state.scene_shader.set_uniform(SceneShaderGLES3::GI_PROBE2_ENABLED, false);
 		}
-	} else if (!e->instance->lightmap_capture_data.empty()) {
+    } else if (!e->instance->lightmap_capture_data.empty()) {
 
 		glUniform4fv(state.scene_shader.get_uniform_location(SceneShaderGLES3::LIGHTMAP_CAPTURES), 12, (const GLfloat *)e->instance->lightmap_capture_data.ptr());
 		state.scene_shader.set_uniform(SceneShaderGLES3::LIGHTMAP_CAPTURE_SKY, false);
@@ -1876,7 +1916,8 @@ void RasterizerSceneGLES3::_setup_light(RenderList::Element *e, const Transform 
 			glBindTexture(GL_TEXTURE_2D, lightmap->tex_id);
 			state.scene_shader.set_uniform(SceneShaderGLES3::LIGHTMAP_ENERGY, capture->energy);
 		}
-	}
+        
+    }
 }
 
 void RasterizerSceneGLES3::_set_cull(bool p_front, bool p_disabled, bool p_reverse_cull) {
@@ -1998,8 +2039,8 @@ void RasterizerSceneGLES3::_render_list(RenderList::Element **p_elements, int p_
 					state.scene_shader.set_conditional(SceneShaderGLES3::SHADOW_MODE_PCF_5, false);
 					state.scene_shader.set_conditional(SceneShaderGLES3::SHADOW_MODE_PCF_13, false);
 					state.scene_shader.set_conditional(SceneShaderGLES3::USE_GI_PROBES, false);
-					state.scene_shader.set_conditional(SceneShaderGLES3::USE_LIGHTMAP_CAPTURE, false);
-					state.scene_shader.set_conditional(SceneShaderGLES3::USE_LIGHTMAP, false);
+                    state.scene_shader.set_conditional(SceneShaderGLES3::USE_LIGHTMAP_CAPTURE, false);
+                    state.scene_shader.set_conditional(SceneShaderGLES3::USE_LIGHTMAP, false);
 					state.scene_shader.set_conditional(SceneShaderGLES3::USE_RADIANCE_MAP, false);
 					state.scene_shader.set_conditional(SceneShaderGLES3::USE_CONTACT_SHADOWS, false);
 
@@ -2007,8 +2048,9 @@ void RasterizerSceneGLES3::_render_list(RenderList::Element **p_elements, int p_
 				} else {
 
 					state.scene_shader.set_conditional(SceneShaderGLES3::USE_GI_PROBES, e->instance->gi_probe_instances.size() > 0);
-					state.scene_shader.set_conditional(SceneShaderGLES3::USE_LIGHTMAP, e->instance->lightmap.is_valid() && e->instance->gi_probe_instances.size() == 0);
-					state.scene_shader.set_conditional(SceneShaderGLES3::USE_LIGHTMAP_CAPTURE, !e->instance->lightmap_capture_data.empty() && !e->instance->lightmap.is_valid() && e->instance->gi_probe_instances.size() == 0);
+                    state.scene_shader.set_conditional(SceneShaderGLES3::USE_LIGHTMAP, e->instance->lightmap.is_valid() && e->instance->gi_probe_instances.size() == 0);
+                    state.scene_shader.set_conditional(SceneShaderGLES3::USE_LIGHTMAP_CAPTURE, !e->instance->lightmap_capture_data.empty() && !e->instance->lightmap.is_valid() && e->instance->gi_probe_instances.size() == 0);
+ 
 
 					state.scene_shader.set_conditional(SceneShaderGLES3::SHADELESS, false);
 
@@ -2179,8 +2221,8 @@ void RasterizerSceneGLES3::_render_list(RenderList::Element **p_elements, int p_
 	state.scene_shader.set_conditional(SceneShaderGLES3::SHADOW_MODE_PCF_5, false);
 	state.scene_shader.set_conditional(SceneShaderGLES3::SHADOW_MODE_PCF_13, false);
 	state.scene_shader.set_conditional(SceneShaderGLES3::USE_GI_PROBES, false);
-	state.scene_shader.set_conditional(SceneShaderGLES3::USE_LIGHTMAP, false);
-	state.scene_shader.set_conditional(SceneShaderGLES3::USE_LIGHTMAP_CAPTURE, false);
+    state.scene_shader.set_conditional(SceneShaderGLES3::USE_LIGHTMAP, false);
+    state.scene_shader.set_conditional(SceneShaderGLES3::USE_LIGHTMAP_CAPTURE, false);
 	state.scene_shader.set_conditional(SceneShaderGLES3::USE_CONTACT_SHADOWS, false);
 	state.scene_shader.set_conditional(SceneShaderGLES3::USE_VERTEX_LIGHTING, false);
 	state.scene_shader.set_conditional(SceneShaderGLES3::USE_OPAQUE_PREPASS, false);
@@ -2303,18 +2345,19 @@ void RasterizerSceneGLES3::_add_geometry_with_material(RasterizerStorageGLES3::G
 
 		e->sort_key |= uint64_t(e->material->index) << RenderList::SORT_KEY_MATERIAL_INDEX_SHIFT;
 
+
 		if (e->instance->gi_probe_instances.size()) {
 			e->sort_key |= SORT_KEY_GI_PROBES_FLAG;
 		}
-
-		if (e->instance->lightmap.is_valid()) {
+        
+        if (e->instance->lightmap.is_valid()) {
 			e->sort_key |= SORT_KEY_LIGHTMAP_FLAG;
 		}
 
 		if (!e->instance->lightmap_capture_data.empty()) {
 			e->sort_key |= SORT_KEY_LIGHTMAP_CAPTURE_FLAG;
 		}
-
+		
 		e->sort_key |= uint64_t(p_material->render_priority + 128) << RenderList::SORT_KEY_PRIORITY_SHIFT;
 	} else {
 		e->sort_key |= uint64_t(e->instance->depth_layer) << RenderList::SORT_KEY_OPAQUE_DEPTH_LAYER_SHIFT;
@@ -4114,7 +4157,7 @@ void RasterizerSceneGLES3::render_scene(const Transform &p_cam_transform, const 
 
 	bool use_mrt = false;
 
-	render_list.clear();
+    render_list.clear();
 	_fill_render_list(p_cull_result, p_cull_count, false, false);
 	//
 
@@ -4794,7 +4837,7 @@ void RasterizerSceneGLES3::initialize() {
 		default_material_twosided = storage->material_create();
 		storage->shader_set_code(default_shader_twosided, "shader_type spatial; render_mode cull_disabled;\n");
 		storage->material_set_shader(default_material_twosided, default_shader_twosided);
-
+        
 		//default for shaders using world coordinates (typical for triplanar)
 
 		default_worldcoord_shader = storage->shader_create();

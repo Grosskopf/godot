@@ -37,6 +37,9 @@
 #include "drivers/gl_context/context_gl.h"
 #include "error_list.h"
 #include "os/os.h"
+#include <GLES2/gl2.h>
+#include <GLES2/gl2ext.h>
+
 
 using namespace Windows::UI::Core;
 
@@ -47,7 +50,12 @@ class ContextEGL : public ContextGL {
 	EGLDisplay mEglDisplay;
 	EGLContext mEglContext;
 	EGLSurface mEglSurface;
+    // The holographic space the app will use for rendering.
+    Windows::Graphics::Holographic::HolographicSpace^ mHolographicSpace = nullptr;
 
+    // The world coordinate system. In this example, a reference frame placed in the environment.
+    Windows::Perception::Spatial::SpatialStationaryFrameOfReference^ mStationaryReferenceFrame = nullptr;
+    
 	EGLint width;
 	EGLint height;
 
@@ -66,7 +74,12 @@ public:
 	bool is_using_vsync() const { return vsync; }
 
 	virtual Error initialize();
-	void reset();
+    ///Hololens functions
+	virtual Error initializeHolo();
+	virtual Error initializeHolo(Platform::Object^ windowBasis);
+    void makewindowHolo();
+
+    void reset();
 
 	void cleanup();
 

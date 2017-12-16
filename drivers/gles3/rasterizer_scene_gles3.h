@@ -46,6 +46,10 @@
 #include "drivers/gles3/shaders/subsurf_scattering.glsl.gen.h"
 #include "drivers/gles3/shaders/tonemap.glsl.gen.h"
 
+#ifdef HOLOGRAPHIC
+#include <GLES2/gl2ext.h>
+#endif
+
 class RasterizerSceneGLES3 : public RasterizerScene {
 public:
 	enum ShadowFilterMode {
@@ -83,7 +87,7 @@ public:
 	RID default_worldcoord_material_twosided;
 	RID default_worldcoord_shader;
 	RID default_worldcoord_shader_twosided;
-
+    
 	RID default_overdraw_material;
 	RID default_overdraw_shader;
 

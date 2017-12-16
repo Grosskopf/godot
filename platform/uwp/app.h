@@ -89,6 +89,7 @@ namespace GodotUWP
 
 		void UpdateWindowSize(Windows::Foundation::Size size);
 		void InitializeEGL(Windows::UI::Core::CoreWindow^ window);
+        void InitializeEGLInner(Platform::Object^ windowBasis);
 		void CleanupEGL();
 
 		char** get_command_line(unsigned int* out_argc);
@@ -97,11 +98,11 @@ namespace GodotUWP
 		bool mWindowVisible;
 		GLsizei mWindowWidth;
 		GLsizei mWindowHeight;
-
-		EGLDisplay mEglDisplay;
-		EGLContext mEglContext;
-		EGLSurface mEglSurface;
-
+        
+        EGLDisplay mEglDisplay;
+        EGLContext mEglContext;
+        EGLSurface mEglSurface;
+        
 		CoreWindow^ window;
 		OSUWP* os;
 

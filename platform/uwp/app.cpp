@@ -43,6 +43,13 @@
 
 #include <collection.h>
 
+#include <EGL/egl.h>
+#include <EGL/eglext.h>
+#include <EGL/eglplatform.h>
+
+// ANGLE include for Windows Store
+#include <angle_windowsstore.h>
+
 using namespace Windows::ApplicationModel::Core;
 using namespace Windows::ApplicationModel::Activation;
 using namespace Windows::UI::Core;
@@ -54,6 +61,7 @@ using namespace Windows::Graphics::Display;
 using namespace Windows::System;
 using namespace Windows::System::Threading::Core;
 using namespace Microsoft::WRL;
+//using namespace Platform;
 
 using namespace GodotUWP;
 
@@ -78,15 +86,17 @@ public:
 	return 0;
 }
 
-App::App() :
-		mWindowClosed(false),
-		mWindowVisible(true),
-		mWindowWidth(0),
-		mWindowHeight(0),
-		mEglDisplay(EGL_NO_DISPLAY),
-		mEglContext(EGL_NO_CONTEXT),
-		mEglSurface(EGL_NO_SURFACE),
-		number_of_contacts(0) {
+App::App()
+	: mWindowClosed(false),
+	  mWindowVisible(true),
+#ifndef HOLOGRAPHIC
+	  mWindowWidth(0),
+	  mWindowHeight(0),
+#endif
+      mEglDisplay(EGL_NO_DISPLAY),
+      mEglContext(EGL_NO_CONTEXT),
+      mEglSurface(EGL_NO_SURFACE),
+	  number_of_contacts(0) {
 }
 
 // The first method called when the IFrameworkView is being created.
@@ -111,10 +121,30 @@ void App::SetWindow(CoreWindow ^ p_window) {
 
 	window->Closed +=
 			ref new TypedEventHandler<CoreWindow ^, CoreWindowEventArgs ^>(this, &App::OnWindowClosed);
-
+#ifndef HOLOGRAPHIC
 	window->SizeChanged +=
 			ref new TypedEventHandler<CoreWindow ^, WindowSizeChangedEventArgs ^>(this, &App::OnWindowSizeChanged);
-
+#else
+    try
+    {
+        
+        ContextEGL *context = memnew(ContextEGL(window));
+        context->makewindowHolo();
+        context->initializeHolo();
+        os->set_gl_context(context);
+        UpdateWindowSize(Size(window->Bounds.Width, window->Bounds.Height));
+    }
+    catch (Platform::Exception^ ex)
+    {
+        if (ex->HResult == HRESULT_FROM_WIN32(ERROR_NOT_SUPPORTED))
+        {
+            // Device does not support holographic spaces. Initialize EGL to use the CoreWindow instead.
+            ContextEGL *context = memnew(ContextEGL(window));
+            context->initializeHolo();
+            os->set_gl_context(context);
+        }
+    }
+#endif
 #if !(WINAPI_FAMILY == WINAPI_FAMILY_PHONE_APP)
 	// Disable all pointer visual feedback for better performance when touching.
 	// This is not supported on Windows Phone applications.
@@ -149,11 +179,12 @@ void App::SetWindow(CoreWindow ^ p_window) {
 
 	Main::setup("uwp", argc, argv, false);
 
-	// The CoreWindow has been created, so EGL can be initialized.
-	ContextEGL *context = memnew(ContextEGL(window));
-	os->set_gl_context(context);
-	UpdateWindowSize(Size(window->Bounds.Width, window->Bounds.Height));
-
+#ifndef HOLOGRAPHIC
+//    The CoreWindow has been created, so EGL can be initialized.
+    ContextEGL *context = memnew(ContextEGL(window));
+    os->set_gl_context(context);
+    UpdateWindowSize(Size(window->Bounds.Width, window->Bounds.Height));
+#endif
 	Main::setup2();
 }
 
@@ -513,7 +544,7 @@ void App::UpdateWindowSize(Size size) {
 
 char **App::get_command_line(unsigned int *out_argc) {
 
-	static char *fail_cl[] = { "--path", "game", NULL };
+	static char *fail_cl[] = { "--main-pack", "game/data.pck", NULL };
 	*out_argc = 2;
 
 	FILE *f = _wfopen(L"__cl__.cl", L"rb");
