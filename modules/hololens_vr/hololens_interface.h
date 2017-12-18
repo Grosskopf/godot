@@ -29,7 +29,6 @@
 /*************************************************************************/
 #ifndef HOLOLENS_VR_INTERFACE_H
 #define HOLOLENS_VR_INTERFACE_H
-
 #include "servers/arvr/arvr_interface.h"
 #include "servers/arvr/arvr_positional_tracker.h"
 

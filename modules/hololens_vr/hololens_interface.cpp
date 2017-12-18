@@ -32,9 +32,17 @@
 #include "core/os/input.h"
 #include "platform/uwp/os_uwp.h"
 #include "servers/visual/visual_server_global.h"
+#include "drivers/gles3/shader_gles3.h"
+//#include <EGL/egl.h>
+//#include <EGL/eglext.h>
+//#include <EGL/eglplatform.h>
 //#include <GLES2/gl2.h>
 //#include <GLES2/gl2ext.h>
-
+//#include <angle_gl.h>
+//#include <libANGLE/global_state.h>
+//#include <GLES3/gl3platform.h>
+//#include "angle_gl.h"
+using namespace Windows::UI::Core;
 StringName HololensVRInterface::get_name() const {
 	return "Native hololens";
 };
@@ -194,8 +202,14 @@ Size2 HololensVRInterface::get_render_targetsize() {
 
 Transform HololensVRInterface::get_transform_for_eye(ARVRInterface::Eyes p_eye, const Transform &p_cam_transform) {
 	_THREAD_SAFE_METHOD_
-
-	Transform transform_for_eye;
+    std::pair<Transform,Transform> views = ShaderGLES3::get_active()->getEyeViewHololens();
+    Transform result;
+    if(p_eye == ARVRInterface::EYE_LEFT)
+        result = p_cam_transform*views.first;
+    else
+        result = p_cam_transform*views.second;
+    return result;
+	/*Transform transform_for_eye;
 
 	ARVRServer *arvr_server = ARVRServer::get_singleton();
 	ERR_FAIL_NULL_V(arvr_server, transform_for_eye);
@@ -206,13 +220,10 @@ Transform HololensVRInterface::get_transform_for_eye(ARVRInterface::Eyes p_eye, 
         // Get the draw buffer.
         // we don't need to check for the existance of our HMD, doesn't effect our values...
 		// note * 0.01 to convert cm to m and * 0.5 as we're moving half in each direction...
-        gl::Context *glContext = gl::GetValidGlobalContext();
-        gl::Program *program = glContext->getState().getProgram();
-        int viewMatrixIndex = program->getUniformLocation("uHolographicViewMatrix");
-        GLfloat[32] view;
-        program->glGetUniformfv(program,viewMatrixIndex,&view);
-		
-        p_eye == ARVRInterface::EYE_LEFT ? eye.matrix=&view[0] : eye.matrix=&view[16];
+        //EGLContext *glContext = eglGetCurrentContext();
+        //Gluint *program = glContext->getState().getProgram();
+        //int viewMatrixIndex = program->getUniformLocation("uHolographicViewMatrix");
+        //p_eye == ARVRInterface::EYE_LEFT ? eye.matrix=views[0] : eye.matrix=views[1];
 
 		// just scale our origin point of our transform
 		Transform hmd_transform;
@@ -225,15 +236,23 @@ Transform HololensVRInterface::get_transform_for_eye(ARVRInterface::Eyes p_eye, 
 		transform_for_eye = p_cam_transform;
 	};
 
-	return transform_for_eye;
+	return transform_for_eye;*/
 };
 
 CameraMatrix HololensVRInterface::get_projection_for_eye(ARVRInterface::Eyes p_eye, real_t p_aspect, real_t p_z_near, real_t p_z_far) {
 	_THREAD_SAFE_METHOD_
-
+    std::pair<real_t[4][4],real_t[4][4]> proj = ShaderGLES3::get_active()->getEyeProjHololens();
 	CameraMatrix eye;
+    for(size_t i=0;i<4;i++){
+        for(size_t j=0;j<4;j++){
+            if(ARVRInterface::EYE_LEFT==p_eye)
+                eye.matrix[i][j] = proj.first[i][j];
+            else
+                eye.matrix[i][j] = proj.second[i][j];
+        }
+    }
 
-	if (p_eye == ARVRInterface::EYE_MONO) {
+	/*if (p_eye == ARVRInterface::EYE_MONO) {
 		///@TODO for now hardcode some of this, what is really needed here is that this needs to be in sync with the real cameras properties
 		// which probably means implementing a specific class for iOS and Android. For now this is purely here as an example.
 		// Note also that if you use a normal viewport with AR/VR turned off you can still use the tracker output of this interface
@@ -244,12 +263,12 @@ CameraMatrix HololensVRInterface::get_projection_for_eye(ARVRInterface::Eyes p_e
         gl::Context *glContext = gl::GetValidGlobalContext();
         gl::Program *program = glContext->getState().getProgram();
         int projectionMatrixIndex = program->getUniformLocation("uHolographicProjectionMatrix");
-        GLfloat[32] proj;
+        float[32] proj;
         program->glGetUniformfv(program,projectionMatrixIndex,&proj);
         //eye.matrix=proj;
         p_eye == ARVRInterface::EYE_LEFT ? eye.matrix=&proj[0] : eye.matrix=&proj[16];
 		//TODO eye.set_for_hmd(p_eye == ARVRInterface::EYE_LEFT ? 1 : 2, p_aspect, intraocular_dist, display_width, display_to_lens, oversample, p_z_near, p_z_far);
-	};
+	};*/
 
 	return eye;
 };
