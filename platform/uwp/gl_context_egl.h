@@ -37,8 +37,11 @@
 #include "drivers/gl_context/context_gl.h"
 #include "error_list.h"
 #include "os/os.h"
-#include <GLES2/gl2.h>
-#include <GLES2/gl2ext.h>
+//#include <GLES3/gl3.h>
+#include "core/math/camera_matrix.h"
+
+//#include "Common\StepTimer.h"
+//#include <GLES3/gl3ext.h>
 
 
 using namespace Windows::UI::Core;
@@ -51,10 +54,21 @@ class ContextEGL : public ContextGL {
 	EGLContext mEglContext;
 	EGLSurface mEglSurface;
     // The holographic space the app will use for rendering.
-    Windows::Graphics::Holographic::HolographicSpace^ mHolographicSpace = nullptr;
+    Windows::Graphics::Holographic::HolographicSpace ^ mHolographicSpace = nullptr;
+    
+    //std::shared_ptr<DX::DeviceResources> mDeviceResources;
+    // Cached pointer to device resources.        // Render loop timer.
 
     // The world coordinate system. In this example, a reference frame placed in the environment.
-    Windows::Perception::Spatial::SpatialStationaryFrameOfReference^ mStationaryReferenceFrame = nullptr;
+    Windows::Perception::Spatial::SpatialStationaryFrameOfReference ^ mStationaryReferenceFrame = nullptr;
+    
+    Windows::Perception::Spatial::SpatialLocatorAttachedFrameOfReference ^ mReferenceFrame = nullptr;
+    
+
+    CameraMatrix leftProj;
+    CameraMatrix rightProj;
+    Transform leftView;
+    Transform rightView;
     
 	EGLint width;
 	EGLint height;
@@ -77,6 +91,11 @@ public:
     ///Hololens functions
 	virtual Error initializeHolo();
 	virtual Error initializeHolo(Platform::Object^ windowBasis);
+    
+    CameraMatrix get_projection_matrix_left_eye();
+    CameraMatrix get_projection_matrix_right_eye();
+    Transform get_view_matrix_left_eye();
+    Transform get_view_matrix_right_eye();
     void makewindowHolo();
 
     void reset();

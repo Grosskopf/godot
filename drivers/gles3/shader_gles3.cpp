@@ -572,27 +572,6 @@ GLint ShaderGLES3::get_uniform_location(const String &p_name) const {
 	return glGetUniformLocation(version->id, p_name.ascii().get_data());
 }
 
-std::pair<real_t[4][4],real_t[4][4]> ShaderGLES3::getEyeProjHololens(){
-    GLfloat proj[32];
-    glGetUniformfv(version->id,glGetUniformLocation(version->id,"uHolographicProjectionMatrix"),proj);
-    std::pair<real_t[4][4],real_t[4][4]> result;
-    for(size_t i=0;i<4;i++){
-        for(size_t j=0;j<4;j++){
-            result.first[i][j]=proj[i*4+j];
-            result.second[i][j]=proj[i*4+j+16];
-        }
-    }
-    return result;
-}
-std::pair<Transform,Transform> ShaderGLES3::getEyeViewHololens(){
-    float view[32];
-    glGetUniformfv(version->id,glGetUniformLocation(version->id,"uHolographicViewMatrix"),view);
-    std::pair<Transform,Transform> result;
-    result.first.set(view[0],view[1],view[2],view[4],view[5],view[6],view[8],view[9],view[10],view[12],view[13],view[14]);
-    result.second.set(view[16],view[17],view[18],view[20],view[21],view[22],view[24],view[25],view[26],view[28],view[29],view[30]);
-    return result;
-}
-
 void ShaderGLES3::setup(const char **p_conditional_defines, int p_conditional_count, const char **p_uniform_names, int p_uniform_count, const AttributePair *p_attribute_pairs, int p_attribute_count, const TexUnitPair *p_texunit_pairs, int p_texunit_pair_count, const UBOPair *p_ubo_pairs, int p_ubo_pair_count, const Feedback *p_feedback, int p_feedback_count, const char *p_vertex_code, const char *p_fragment_code, int p_vertex_code_start, int p_fragment_code_start) {
 
 	ERR_FAIL_COND(version);

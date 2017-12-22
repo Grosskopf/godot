@@ -179,9 +179,8 @@ Ref<ARVRInterface> ARVRServer::get_interface(int p_index) const {
 };
 
 Ref<ARVRInterface> ARVRServer::find_interface(const String &p_name) const {
-	int idx = -1;
+    int idx = -1;
 	for (int i = 0; i < interfaces.size(); i++) {
-
 		if (interfaces[i]->get_name() == p_name) {
 
 			idx = i;

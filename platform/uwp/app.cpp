@@ -49,6 +49,7 @@
 
 // ANGLE include for Windows Store
 #include <angle_windowsstore.h>
+#include <iostream>
 
 using namespace Windows::ApplicationModel::Core;
 using namespace Windows::ApplicationModel::Activation;
@@ -81,6 +82,8 @@ public:
 
 // The main function creates an IFrameworkViewSource for our app, and runs the app.
 [Platform::MTAThread] int main(Platform::Array<Platform::String ^> ^) {
+    
+	OutputDebugStringA("Hallo Welt\n\n\n");
 	auto godotApplicationSource = ref new GodotUWPViewSource();
 	CoreApplication::Run(godotApplicationSource);
 	return 0;
@@ -97,10 +100,12 @@ App::App()
       mEglContext(EGL_NO_CONTEXT),
       mEglSurface(EGL_NO_SURFACE),
 	  number_of_contacts(0) {
+	OutputDebugStringA("Hallo App\n");
 }
 
 // The first method called when the IFrameworkView is being created.
 void App::Initialize(CoreApplicationView ^ applicationView) {
+	OutputDebugStringA("Hallo Initialize\n");
 	// Register event handlers for app lifecycle. This example includes Activated, so that we
 	// can make the CoreWindow active and start rendering on the window.
 	applicationView->Activated +=
@@ -115,6 +120,7 @@ void App::Initialize(CoreApplicationView ^ applicationView) {
 
 // Called when the CoreWindow object is created (or re-created).
 void App::SetWindow(CoreWindow ^ p_window) {
+	OutputDebugStringA("Hallo SetWindow\n");
 	window = p_window;
 	window->VisibilityChanged +=
 			ref new TypedEventHandler<CoreWindow ^, VisibilityChangedEventArgs ^>(this, &App::OnVisibilityChanged);
@@ -186,6 +192,7 @@ void App::SetWindow(CoreWindow ^ p_window) {
     UpdateWindowSize(Size(window->Bounds.Width, window->Bounds.Height));
 #endif
 	Main::setup2();
+    OutputDebugStringA("AfterSetwindow\n");
 }
 
 static int _get_button(Windows::UI::Input::PointerPoint ^ pt) {

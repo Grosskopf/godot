@@ -463,6 +463,7 @@ public:
 	bool has_feature(const String &p_feature);
 
 	bool is_hidpi_allowed() const { return _allow_hidpi; }
+
 	OS();
 	virtual ~OS();
 };

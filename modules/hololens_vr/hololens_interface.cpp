@@ -159,6 +159,7 @@ bool HololensVRInterface::is_initialized() {
 };
 
 bool HololensVRInterface::initialize() {
+    OutputDebugStringA("initARInterface\n");
 	ARVRServer *arvr_server = ARVRServer::get_singleton();
 	ERR_FAIL_NULL_V(arvr_server, false);
 
@@ -202,13 +203,16 @@ Size2 HololensVRInterface::get_render_targetsize() {
 
 Transform HololensVRInterface::get_transform_for_eye(ARVRInterface::Eyes p_eye, const Transform &p_cam_transform) {
 	_THREAD_SAFE_METHOD_
-    std::pair<Transform,Transform> views = ShaderGLES3::get_active()->getEyeViewHololens();
+    OutputDebugStringA("get_transform_for_eye\n");
     Transform result;
-    if(p_eye == ARVRInterface::EYE_LEFT)
-        result = p_cam_transform*views.first;
-    else
-        result = p_cam_transform*views.second;
-    return result;
+	OSUWP *os=dynamic_cast<OSUWP*>(OS::get_singleton());
+    if(initialized)
+    {
+        ARVRInterface::EYE_LEFT==p_eye ? result=os->get_view_matrix_left_eye() : result=os->get_view_matrix_right_eye();
+    }
+    OutputDebugStringA((String(result)+"\n").utf8());
+	return result;
+    //OutputDebugStringA((String(result)+"\n").utf8());
 	/*Transform transform_for_eye;
 
 	ARVRServer *arvr_server = ARVRServer::get_singleton();
@@ -241,17 +245,15 @@ Transform HololensVRInterface::get_transform_for_eye(ARVRInterface::Eyes p_eye, 
 
 CameraMatrix HololensVRInterface::get_projection_for_eye(ARVRInterface::Eyes p_eye, real_t p_aspect, real_t p_z_near, real_t p_z_far) {
 	_THREAD_SAFE_METHOD_
-    std::pair<real_t[4][4],real_t[4][4]> proj = ShaderGLES3::get_active()->getEyeProjHololens();
-	CameraMatrix eye;
-    for(size_t i=0;i<4;i++){
-        for(size_t j=0;j<4;j++){
-            if(ARVRInterface::EYE_LEFT==p_eye)
-                eye.matrix[i][j] = proj.first[i][j];
-            else
-                eye.matrix[i][j] = proj.second[i][j];
-        }
+	OSUWP *os=dynamic_cast<OSUWP*>(OS::get_singleton());
+    CameraMatrix result;
+    if(initialized)
+    {
+        ARVRInterface::EYE_LEFT==p_eye ? result=os->get_projection_matrix_left_eye() : result=os->get_projection_matrix_right_eye();
     }
-
+    OutputDebugStringA((String(result)+"\n").utf8());
+    return result;
+    //OutputDebugStringA((String(eye)+"\n").utf8());
 	/*if (p_eye == ARVRInterface::EYE_MONO) {
 		///@TODO for now hardcode some of this, what is really needed here is that this needs to be in sync with the real cameras properties
 		// which probably means implementing a specific class for iOS and Android. For now this is purely here as an example.
@@ -270,7 +272,7 @@ CameraMatrix HololensVRInterface::get_projection_for_eye(ARVRInterface::Eyes p_e
 		//TODO eye.set_for_hmd(p_eye == ARVRInterface::EYE_LEFT ? 1 : 2, p_aspect, intraocular_dist, display_width, display_to_lens, oversample, p_z_near, p_z_far);
 	};*/
 
-	return eye;
+	//return eye;
 };
 void HololensVRInterface::commit_for_eye(ARVRInterface::Eyes p_eye, RID p_render_target, const Rect2 &p_screen_rect) {
 	_THREAD_SAFE_METHOD_
