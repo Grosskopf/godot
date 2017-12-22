@@ -453,6 +453,7 @@ public:
 	virtual void *get_stack_bottom() const;
 
 	bool is_hidpi_allowed() const { return _allow_hidpi; }
+
 	OS();
 	virtual ~OS();
 };

@@ -796,6 +796,18 @@ int OSUWP::get_power_seconds_left() {
 int OSUWP::get_power_percent_left() {
 	return power_manager->get_power_percent_left();
 }
+CameraMatrix OSUWP::get_projection_matrix_left_eye(){
+    return gl_context->get_projection_matrix_left_eye();
+}
+CameraMatrix OSUWP::get_projection_matrix_right_eye(){
+    return gl_context->get_projection_matrix_right_eye();
+}
+Transform OSUWP::get_view_matrix_left_eye(){
+    return gl_context->get_view_matrix_left_eye();
+}
+Transform OSUWP::get_view_matrix_right_eye(){
+    return gl_context->get_view_matrix_right_eye();
+}
 
 OSUWP::OSUWP() {
 

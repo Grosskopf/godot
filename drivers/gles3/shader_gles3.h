@@ -30,8 +30,6 @@
 #ifndef SHADER_GLES3_H
 #define SHADER_GLES3_H
 
-#include <stdio.h>
-#include <utility>
 
 #include "platform_config.h"
 #ifndef GLES3_INCLUDE_H
@@ -309,8 +307,6 @@ public:
 	GLint get_uniform_location(const String &p_name) const;
 	GLint get_uniform_location(int p_index) const;
     
-    std::pair<Transform,Transform> getEyeViewHololens();
-    std::pair<real_t[4][4],real_t[4][4]> getEyeProjHololens();
 
 	static _FORCE_INLINE_ ShaderGLES3 *get_active() { return active; };
 	bool bind();

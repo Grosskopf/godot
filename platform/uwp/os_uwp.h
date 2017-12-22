@@ -42,12 +42,12 @@
 #include "servers/audio_server.h"
 #include "servers/visual/rasterizer.h"
 #include "servers/visual_server.h"
-
+/*
 #include <fcntl.h>
 #include <io.h>
 #include <stdio.h>
 #include <windows.h>
-
+*/
 /**
 	@author Juan Linietsky <reduzio@gmail.com>
 */
@@ -256,6 +256,10 @@ public:
 
 	void queue_key_event(KeyEvent &p_event);
 
+    CameraMatrix get_projection_matrix_left_eye();
+    CameraMatrix get_projection_matrix_right_eye();
+    Transform get_view_matrix_left_eye();
+    Transform get_view_matrix_right_eye();
 	OSUWP();
 	~OSUWP();
 };
