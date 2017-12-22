@@ -740,7 +740,24 @@ Error EditorExportPlatform::export_project_files(const Ref<EditorExportPreset> &
 
 	ProjectSettings::CustomMap custom_map;
 	if (path_remaps.size()) {
-		custom_map["path_remap/remapped_paths"] = path_remaps;
+		if (1) { //new remap mode, use always as it's friendlier with multiple .pck exports
+			for (int i = 0; i < path_remaps.size(); i += 2) {
+				String from = path_remaps[i];
+				String to = path_remaps[i + 1];
+				String remap_file = "[remap]\n\npath=\"" + to.c_escape() + "\"\n";
+				CharString utf8 = remap_file.utf8();
+				Vector<uint8_t> new_file;
+				new_file.resize(utf8.length());
+				for (int j = 0; j < utf8.length(); j++) {
+					new_file[j] = utf8[j];
+				}
+
+				p_func(p_udata, from + ".remap", new_file, idx, total);
+			}
+		} else {
+			//old remap mode, will still work, but it's unused because it's not multiple pck export friendly
+			custom_map["path_remap/remapped_paths"] = path_remaps;
+		}
 	}
 
 	// Store icon and splash images directly, they need to bypass the import system and be loaded as images
@@ -1288,8 +1305,18 @@ bool EditorExportPlatformPC::can_export(const Ref<EditorExportPreset> &p_preset,
 	return valid;
 }
 
-String EditorExportPlatformPC::get_binary_extension() const {
-	return extension;
+String EditorExportPlatformPC::get_binary_extension(const Ref<EditorExportPreset> &p_preset) const {
+	for (Map<String, String>::Element *E = extensions.front(); E; E = E->next()) {
+		if (p_preset->get(E->key())) {
+			return extensions[E->key()];
+		}
+	}
+
+	if (extensions.has("default")) {
+		return extensions["default"];
+	}
+
+	return "";
 }
 
 Error EditorExportPlatformPC::export_project(const Ref<EditorExportPreset> &p_preset, bool p_debug, const String &p_path, int p_flags) {
@@ -1337,8 +1364,8 @@ Error EditorExportPlatformPC::export_project(const Ref<EditorExportPreset> &p_pr
 	return save_pack(p_preset, pck_path);
 }
 
-void EditorExportPlatformPC::set_extension(const String &p_extension) {
-	extension = p_extension;
+void EditorExportPlatformPC::set_extension(const String &p_extension, const String &p_feature_key) {
+	extensions[p_feature_key] = p_extension;
 }
 
 void EditorExportPlatformPC::set_name(const String &p_name) {

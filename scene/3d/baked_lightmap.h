@@ -18,6 +18,7 @@ class BakedLightmapData : public Resource {
 
 		NodePath path;
 		Ref<Texture> lightmap;
+		int instance_index;
 	};
 
 	Vector<User> users;
@@ -44,10 +45,11 @@ public:
 	void set_energy(float p_energy);
 	float get_energy() const;
 
-	void add_user(const NodePath &p_path, const Ref<Texture> &p_lightmap);
+	void add_user(const NodePath &p_path, const Ref<Texture> &p_lightmap, int p_instance = -1);
 	int get_user_count() const;
 	NodePath get_user_path(int p_user) const;
 	Ref<Texture> get_user_lightmap(int p_user) const;
+	int get_user_instance(int p_user) const;
 	void clear_users();
 
 	virtual RID get_rid() const;
@@ -59,17 +61,6 @@ class BakedLightmap : public VisualInstance {
 	GDCLASS(BakedLightmap, VisualInstance);
 
 public:
-	enum Subdiv {
-		SUBDIV_128,
-		SUBDIV_256,
-		SUBDIV_512,
-		SUBDIV_1024,
-		SUBDIV_2048,
-		SUBDIV_4096,
-		SUBDIV_MAX
-
-	};
-
 	enum BakeQuality {
 		BAKE_QUALITY_LOW,
 		BAKE_QUALITY_MEDIUM,
@@ -95,8 +86,8 @@ public:
 	typedef void (*BakeEndFunc)();
 
 private:
-	Subdiv bake_subdiv;
-	Subdiv capture_subdiv;
+	float bake_cell_size;
+	float capture_cell_size;
 	Vector3 extents;
 	float propagation;
 	float energy;
@@ -113,6 +104,7 @@ private:
 		Ref<Mesh> mesh;
 		Transform local_xform;
 		NodePath path;
+		int instance_idx;
 	};
 
 	struct PlotLight {
@@ -147,11 +139,11 @@ public:
 	void set_light_data(const Ref<BakedLightmapData> &p_data);
 	Ref<BakedLightmapData> get_light_data() const;
 
-	void set_bake_subdiv(Subdiv p_subdiv);
-	Subdiv get_bake_subdiv() const;
+	void set_bake_cell_size(float p_cell_size);
+	float get_bake_cell_size() const;
 
-	void set_capture_subdiv(Subdiv p_subdiv);
-	Subdiv get_capture_subdiv() const;
+	void set_capture_cell_size(float p_cell_size);
+	float get_capture_cell_size() const;
 
 	void set_extents(const Vector3 &p_extents);
 	Vector3 get_extents() const;
@@ -181,7 +173,6 @@ public:
 	BakedLightmap();
 };
 
-VARIANT_ENUM_CAST(BakedLightmap::Subdiv);
 VARIANT_ENUM_CAST(BakedLightmap::BakeQuality);
 VARIANT_ENUM_CAST(BakedLightmap::BakeMode);
 VARIANT_ENUM_CAST(BakedLightmap::BakeError);

@@ -189,6 +189,7 @@ opts.Add(BoolVariable('builtin_squish', "Use the builtin squish library", True))
 opts.Add(BoolVariable('builtin_thekla_atlas', "Use the builtin thekla_altas library", True))
 opts.Add(BoolVariable('builtin_zlib', "Use the builtin zlib library", True))
 opts.Add(BoolVariable('builtin_zstd', "Use the builtin zstd library", True))
+opts.Add(BoolVariable('no_editor_splash', "Don't use the custom splash screen for the editor", False))
 
 # Environment setup
 opts.Add("CXX", "C++ compiler")
@@ -239,6 +240,9 @@ sys.modules.pop('detect')
 if (env_base['target'] == 'debug'):
     env_base.Append(CPPFLAGS=['-DDEBUG_MEMORY_ALLOC'])
     env_base.Append(CPPFLAGS=['-DSCI_NAMESPACE'])
+
+if (env_base['no_editor_splash']):
+    env_base.Append(CPPFLAGS=['-DNO_EDITOR_SPLASH'])
 
 if not env_base['deprecated']:
     env_base.Append(CPPFLAGS=['-DDISABLE_DEPRECATED'])
@@ -408,9 +412,7 @@ if selected_platform in platform_list:
 
     methods.update_version(env.module_version_string)
 
-    suffix += env.module_version_string
-
-    env["PROGSUFFIX"] = suffix + env["PROGSUFFIX"]
+    env["PROGSUFFIX"] = suffix + env.module_version_string + env["PROGSUFFIX"]
     env["OBJSUFFIX"] = suffix + env["OBJSUFFIX"]
     env["LIBSUFFIX"] = suffix + env["LIBSUFFIX"]
     env["SHLIBSUFFIX"] = suffix + env["SHLIBSUFFIX"]
@@ -555,9 +557,9 @@ class cache_progress:
         # decay since the ctime, and return a list with the entries
         # (filename, size, weight).
         current_time = time.time()
-        file_stat = [(x[0], x[1][0], x[1][0] * math.exp(self.exponent_scale * (x[1][1] - current_time))) for x in file_stat]
-        # Sort by highest weight (most sensible to keep) first
-        file_stat.sort(key=lambda x: x[2], reverse=True)
+        file_stat = [(x[0], x[1][0], (current_time - x[1][1])) for x in file_stat]
+        # Sort by the most resently accessed files (most sensible to keep) first
+        file_stat.sort(key=lambda x: x[2])
         # Search for the first entry where the storage limit is
         # reached
         sum, mark = 0, None

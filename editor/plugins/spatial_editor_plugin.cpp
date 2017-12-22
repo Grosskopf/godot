@@ -2219,15 +2219,9 @@ void SpatialEditorViewport::_notification(int p_what) {
 		viewport->set_hdr(hdr);
 
 		bool show_info = view_menu->get_popup()->is_item_checked(view_menu->get_popup()->get_item_index(VIEW_INFORMATION));
-		if (show_info != info->is_visible()) {
-			if (show_info)
-				info->show();
-			else
-				info->hide();
-		}
+		info_label->set_visible(show_info);
 
 		if (show_info) {
-
 			String text;
 			text += TTR("Objects Drawn") + ": " + itos(viewport->get_render_info(Viewport::RENDER_INFO_OBJECTS_IN_FRAME)) + "\n";
 			text += TTR("Material Changes") + ": " + itos(viewport->get_render_info(Viewport::RENDER_INFO_MATERIAL_CHANGES_IN_FRAME)) + "\n";
@@ -2235,38 +2229,19 @@ void SpatialEditorViewport::_notification(int p_what) {
 			text += TTR("Surface Changes") + ": " + itos(viewport->get_render_info(Viewport::RENDER_INFO_SURFACE_CHANGES_IN_FRAME)) + "\n";
 			text += TTR("Draw Calls") + ": " + itos(viewport->get_render_info(Viewport::RENDER_INFO_DRAW_CALLS_IN_FRAME)) + "\n";
 			text += TTR("Vertices") + ": " + itos(viewport->get_render_info(Viewport::RENDER_INFO_VERTICES_IN_FRAME));
-
-			if (info_label->get_text() != text || surface->get_size() != prev_size) {
-				info_label->set_text(text);
-				Size2 ms = info->get_minimum_size();
-				info->set_position(surface->get_size() - ms - Vector2(20, 20) * EDSCALE);
-			}
+			info_label->set_text(text);
 		}
 
 		// FPS Counter.
 		bool show_fps = view_menu->get_popup()->is_item_checked(view_menu->get_popup()->get_item_index(VIEW_FPS));
-		if (show_fps != fps->is_visible()) {
-			if (show_fps)
-				fps->show();
-			else
-				fps->hide();
-		}
+		fps_label->set_visible(show_fps);
 
 		if (show_fps) {
 			String text;
 			const float temp_fps = Engine::get_singleton()->get_frames_per_second();
 			text += TTR("FPS") + ": " + itos(temp_fps) + " (" + String::num(1000.0f / temp_fps, 2) + " ms)";
-
-			if (fps_label->get_text() != text || surface->get_size() != prev_size) {
-				fps_label->set_text(text);
-				Size2 ms = fps->get_size();
-				Size2 size = surface->get_size();
-				size.y = ms.y + 20;
-				fps->set_position(size - ms - Vector2(20, 0) * EDSCALE);
-			}
+			fps_label->set_text(text);
 		}
-
-		prev_size = surface->get_size();
 	}
 
 	if (p_what == NOTIFICATION_ENTER_TREE) {
@@ -2275,8 +2250,8 @@ void SpatialEditorViewport::_notification(int p_what) {
 		surface->connect("gui_input", this, "_sinput");
 		surface->connect("mouse_entered", this, "_smouseenter");
 		surface->connect("mouse_exited", this, "_smouseexit");
-		info->add_style_override("panel", get_stylebox("panel", "Panel"));
-		fps->add_style_override("panel", get_stylebox("panel", "Panel"));
+		info_label->add_style_override("normal", editor->get_gui_base()->get_stylebox("Information3dViewport", "EditorStyles"));
+		fps_label->add_style_override("normal", editor->get_gui_base()->get_stylebox("Information3dViewport", "EditorStyles"));
 		preview_camera->set_icon(get_icon("Camera", "EditorIcons"));
 		_init_gizmo_instance(index);
 	}
@@ -2773,8 +2748,10 @@ void SpatialEditorViewport::set_can_preview(Camera *p_preview) {
 	if (!preview_camera->is_pressed()) {
 
 		if (p_preview) {
+			fps_label->set_anchor_and_margin(MARGIN_TOP, ANCHOR_BEGIN, 15 * EDSCALE + preview_camera->get_size().height);
 			preview_camera->show();
 		} else {
+			fps_label->set_anchor_and_margin(MARGIN_TOP, ANCHOR_BEGIN, 10 * EDSCALE);
 			preview_camera->hide();
 		}
 	}
@@ -3399,20 +3376,24 @@ SpatialEditorViewport::SpatialEditorViewport(SpatialEditor *p_spatial_editor, Ed
 
 	preview_node = NULL;
 
-	info = memnew(PanelContainer);
-	info->set_self_modulate(Color(1, 1, 1, 0.4));
-	surface->add_child(info);
 	info_label = memnew(Label);
-	info->add_child(info_label);
-	info->hide();
+	info_label->set_anchor_and_margin(MARGIN_LEFT, ANCHOR_END, -90 * EDSCALE);
+	info_label->set_anchor_and_margin(MARGIN_TOP, ANCHOR_END, -90 * EDSCALE);
+	info_label->set_anchor_and_margin(MARGIN_RIGHT, ANCHOR_END, -10 * EDSCALE);
+	info_label->set_anchor_and_margin(MARGIN_BOTTOM, ANCHOR_END, -10 * EDSCALE);
+	info_label->set_h_grow_direction(GROW_DIRECTION_BEGIN);
+	info_label->set_v_grow_direction(GROW_DIRECTION_BEGIN);
+	surface->add_child(info_label);
+	info_label->hide();
 
 	// FPS Counter.
-	fps = memnew(PanelContainer);
-	fps->set_self_modulate(Color(1, 1, 1, 0.4));
-	surface->add_child(fps);
 	fps_label = memnew(Label);
-	fps->add_child(fps_label);
-	fps->hide();
+	fps_label->set_anchor_and_margin(MARGIN_LEFT, ANCHOR_END, -90 * EDSCALE);
+	fps_label->set_anchor_and_margin(MARGIN_TOP, ANCHOR_BEGIN, 10 * EDSCALE);
+	fps_label->set_anchor_and_margin(MARGIN_RIGHT, ANCHOR_END, -10 * EDSCALE);
+	fps_label->set_h_grow_direction(GROW_DIRECTION_BEGIN);
+	surface->add_child(fps_label);
+	fps_label->hide();
 
 	accept = NULL;
 
@@ -3884,8 +3865,7 @@ Dictionary SpatialEditor::get_state() const {
 	d["rotate_snap"] = get_rotate_snap();
 	d["scale_snap"] = get_scale_snap();
 
-	int local_coords_index = transform_menu->get_popup()->get_item_index(MENU_TRANSFORM_LOCAL_COORDS);
-	d["local_coords"] = transform_menu->get_popup()->is_item_checked(local_coords_index);
+	d["local_coords"] = tool_option_button[TOOL_OPT_LOCAL_COORDS]->is_pressed();
 
 	int vc = 0;
 	if (view_menu->get_popup()->is_item_checked(view_menu->get_popup()->get_item_index(MENU_VIEW_USE_1_VIEWPORT)))
@@ -3923,8 +3903,7 @@ void SpatialEditor::set_state(const Dictionary &p_state) {
 
 	if (d.has("snap_enabled")) {
 		snap_enabled = d["snap_enabled"];
-		int snap_enabled_idx = transform_menu->get_popup()->get_item_index(MENU_TRANSFORM_USE_SNAP);
-		transform_menu->get_popup()->set_item_checked(snap_enabled_idx, snap_enabled);
+		tool_option_button[TOOL_OPT_LOCAL_COORDS]->set_pressed(d["snap_enabled"]);
 	}
 
 	if (d.has("translate_snap"))
@@ -3937,8 +3916,7 @@ void SpatialEditor::set_state(const Dictionary &p_state) {
 		snap_scale->set_text(d["scale_snap"]);
 
 	if (d.has("local_coords")) {
-		int local_coords_idx = transform_menu->get_popup()->get_item_index(MENU_TRANSFORM_LOCAL_COORDS);
-		transform_menu->get_popup()->set_item_checked(local_coords_idx, d["local_coords"]);
+		tool_option_button[TOOL_OPT_LOCAL_COORDS]->set_pressed(d["local_coords"]);
 		update_transform_gizmo();
 	}
 
@@ -4078,6 +4056,22 @@ void SpatialEditor::_xform_dialog_action() {
 	undo_redo->commit_action();
 }
 
+void SpatialEditor::_menu_item_toggled(bool pressed, int p_option) {
+
+	switch (p_option) {
+		case MENU_TOOL_LOCAL_COORDS: {
+
+			tool_option_button[TOOL_OPT_LOCAL_COORDS]->set_pressed(pressed);
+			update_transform_gizmo();
+		} break;
+
+		case MENU_TOOL_USE_SNAP: {
+			tool_option_button[TOOL_OPT_USE_SNAP]->set_pressed(pressed);
+			snap_enabled = pressed;
+		} break;
+	}
+}
+
 void SpatialEditor::_menu_item_pressed(int p_option) {
 
 	switch (p_option) {
@@ -4091,28 +4085,12 @@ void SpatialEditor::_menu_item_pressed(int p_option) {
 			for (int i = 0; i < TOOL_MAX; i++)
 				tool_button[i]->set_pressed(i == p_option);
 			tool_mode = (ToolMode)p_option;
-
-			//static const char *_mode[]={"Selection Mode.","Translation Mode.","Rotation Mode.","Scale Mode.","List Selection Mode."};
-			//set_message(_mode[p_option],3);
 			update_transform_gizmo();
 
-		} break;
-		case MENU_TRANSFORM_USE_SNAP: {
-
-			bool is_checked = transform_menu->get_popup()->is_item_checked(transform_menu->get_popup()->get_item_index(p_option));
-			snap_enabled = !is_checked;
-			transform_menu->get_popup()->set_item_checked(transform_menu->get_popup()->get_item_index(p_option), snap_enabled);
 		} break;
 		case MENU_TRANSFORM_CONFIGURE_SNAP: {
 
 			snap_dialog->popup_centered(Size2(200, 180));
-		} break;
-		case MENU_TRANSFORM_LOCAL_COORDS: {
-
-			bool is_checked = transform_menu->get_popup()->is_item_checked(transform_menu->get_popup()->get_item_index(p_option));
-			transform_menu->get_popup()->set_item_checked(transform_menu->get_popup()->get_item_index(p_option), !is_checked);
-			update_transform_gizmo();
-
 		} break;
 		case MENU_TRANSFORM_DIALOG: {
 
@@ -4718,6 +4696,19 @@ void SpatialEditor::_unhandled_key_input(Ref<InputEvent> p_event) {
 
 			else if (ED_IS_SHORTCUT("spatial_editor/tool_scale", p_event))
 				_menu_item_pressed(MENU_TOOL_SCALE);
+
+			else if (ED_IS_SHORTCUT("spatial_editor/local_coords", p_event))
+				if (are_local_coords_enabled()) {
+					_menu_item_toggled(false, MENU_TOOL_LOCAL_COORDS);
+				} else {
+					_menu_item_toggled(true, MENU_TOOL_LOCAL_COORDS);
+				}
+			else if (ED_IS_SHORTCUT("spatial_editor/snap", p_event))
+				if (is_snap_enabled()) {
+					_menu_item_toggled(false, MENU_TOOL_USE_SNAP);
+				} else {
+					_menu_item_toggled(true, MENU_TOOL_USE_SNAP);
+				}
 		}
 	}
 }
@@ -4732,6 +4723,9 @@ void SpatialEditor::_notification(int p_what) {
 		tool_button[SpatialEditor::TOOL_MODE_LIST_SELECT]->set_icon(get_icon("ListSelect", "EditorIcons"));
 		tool_button[SpatialEditor::TOOL_LOCK_SELECTED]->set_icon(get_icon("Lock", "EditorIcons"));
 		tool_button[SpatialEditor::TOOL_UNLOCK_SELECTED]->set_icon(get_icon("Unlock", "EditorIcons"));
+
+		tool_option_button[SpatialEditor::TOOL_OPT_LOCAL_COORDS]->set_icon(get_icon("Object", "EditorIcons"));
+		tool_option_button[SpatialEditor::TOOL_OPT_USE_SNAP]->set_icon(get_icon("Snap", "EditorIcons"));
 
 		view_menu->get_popup()->set_item_icon(view_menu->get_popup()->get_item_index(MENU_VIEW_USE_1_VIEWPORT), get_icon("Panels1", "EditorIcons"));
 		view_menu->get_popup()->set_item_icon(view_menu->get_popup()->get_item_index(MENU_VIEW_USE_2_VIEWPORTS), get_icon("Panels2", "EditorIcons"));
@@ -4767,6 +4761,9 @@ void SpatialEditor::_notification(int p_what) {
 		tool_button[SpatialEditor::TOOL_MODE_ROTATE]->set_icon(get_icon("ToolRotate", "EditorIcons"));
 		tool_button[SpatialEditor::TOOL_MODE_SCALE]->set_icon(get_icon("ToolScale", "EditorIcons"));
 		tool_button[SpatialEditor::TOOL_MODE_LIST_SELECT]->set_icon(get_icon("ListSelect", "EditorIcons"));
+
+		tool_option_button[SpatialEditor::TOOL_OPT_LOCAL_COORDS]->set_icon(get_icon("Object", "EditorIcons"));
+		tool_option_button[SpatialEditor::TOOL_OPT_USE_SNAP]->set_icon(get_icon("Snap", "EditorIcons"));
 
 		view_menu->get_popup()->set_item_icon(view_menu->get_popup()->get_item_index(MENU_VIEW_USE_1_VIEWPORT), get_icon("Panels1", "EditorIcons"));
 		view_menu->get_popup()->set_item_icon(view_menu->get_popup()->get_item_index(MENU_VIEW_USE_2_VIEWPORTS), get_icon("Panels2", "EditorIcons"));
@@ -4886,6 +4883,7 @@ void SpatialEditor::_bind_methods() {
 	ClassDB::bind_method("_unhandled_key_input", &SpatialEditor::_unhandled_key_input);
 	ClassDB::bind_method("_node_removed", &SpatialEditor::_node_removed);
 	ClassDB::bind_method("_menu_item_pressed", &SpatialEditor::_menu_item_pressed);
+	ClassDB::bind_method("_menu_item_toggled", &SpatialEditor::_menu_item_toggled);
 	ClassDB::bind_method("_xform_dialog_action", &SpatialEditor::_xform_dialog_action);
 	ClassDB::bind_method("_get_editor_data", &SpatialEditor::_get_editor_data);
 	ClassDB::bind_method("_request_gizmo", &SpatialEditor::_request_gizmo);
@@ -4949,6 +4947,7 @@ SpatialEditor::SpatialEditor(EditorNode *p_editor) {
 
 	Vector<Variant> button_binds;
 	button_binds.resize(1);
+	String sct;
 
 	tool_button[TOOL_MODE_SELECT] = memnew(ToolButton);
 	hbc_menu->add_child(tool_button[TOOL_MODE_SELECT]);
@@ -4960,7 +4959,6 @@ SpatialEditor::SpatialEditor(EditorNode *p_editor) {
 	tool_button[TOOL_MODE_SELECT]->set_tooltip(TTR("Select Mode (Q)\n") + keycode_get_string(KEY_MASK_CMD) + TTR("Drag: Rotate\nAlt+Drag: Move\nAlt+RMB: Depth list selection"));
 
 	tool_button[TOOL_MODE_MOVE] = memnew(ToolButton);
-
 	hbc_menu->add_child(tool_button[TOOL_MODE_MOVE]);
 	tool_button[TOOL_MODE_MOVE]->set_toggle_mode(true);
 	tool_button[TOOL_MODE_MOVE]->set_flat(true);
@@ -4984,9 +4982,6 @@ SpatialEditor::SpatialEditor(EditorNode *p_editor) {
 	tool_button[TOOL_MODE_SCALE]->connect("pressed", this, "_menu_item_pressed", button_binds);
 	tool_button[TOOL_MODE_SCALE]->set_tooltip(TTR("Scale Mode (R)"));
 
-	VSeparator *vs = memnew(VSeparator);
-	hbc_menu->add_child(vs);
-
 	tool_button[TOOL_MODE_LIST_SELECT] = memnew(ToolButton);
 	hbc_menu->add_child(tool_button[TOOL_MODE_LIST_SELECT]);
 	tool_button[TOOL_MODE_LIST_SELECT]->set_toggle_mode(true);
@@ -5007,6 +5002,29 @@ SpatialEditor::SpatialEditor(EditorNode *p_editor) {
 	tool_button[TOOL_UNLOCK_SELECTED]->connect("pressed", this, "_menu_item_pressed", button_binds);
 	tool_button[TOOL_UNLOCK_SELECTED]->set_tooltip(TTR("Unlock the selected object (can be moved)."));
 
+	VSeparator *vs = memnew(VSeparator);
+	hbc_menu->add_child(vs);
+
+	tool_option_button[TOOL_OPT_LOCAL_COORDS] = memnew(ToolButton);
+	hbc_menu->add_child(tool_option_button[TOOL_OPT_LOCAL_COORDS]);
+	tool_option_button[TOOL_OPT_LOCAL_COORDS]->set_toggle_mode(true);
+	tool_option_button[TOOL_OPT_LOCAL_COORDS]->set_flat(true);
+	button_binds[0] = MENU_TOOL_LOCAL_COORDS;
+	tool_option_button[TOOL_OPT_LOCAL_COORDS]->connect("toggled", this, "_menu_item_toggled", button_binds);
+	ED_SHORTCUT("spatial_editor/local_coords", TTR("Local Coords"), KEY_T);
+	sct = ED_GET_SHORTCUT("spatial_editor/local_coords").ptr()->get_as_text();
+	tool_option_button[TOOL_OPT_LOCAL_COORDS]->set_tooltip(vformat(TTR("Local Space Mode (%s)"), sct));
+
+	tool_option_button[TOOL_OPT_USE_SNAP] = memnew(ToolButton);
+	hbc_menu->add_child(tool_option_button[TOOL_OPT_USE_SNAP]);
+	tool_option_button[TOOL_OPT_USE_SNAP]->set_toggle_mode(true);
+	tool_option_button[TOOL_OPT_USE_SNAP]->set_flat(true);
+	button_binds[0] = MENU_TOOL_USE_SNAP;
+	tool_option_button[TOOL_OPT_USE_SNAP]->connect("toggled", this, "_menu_item_toggled", button_binds);
+	ED_SHORTCUT("spatial_editor/snap", TTR("Snap"), KEY_Y);
+	sct = ED_GET_SHORTCUT("spatial_editor/snap").ptr()->get_as_text();
+	tool_option_button[TOOL_OPT_USE_SNAP]->set_tooltip(vformat(TTR("Snap Mode (%s)"), sct));
+
 	vs = memnew(VSeparator);
 	hbc_menu->add_child(vs);
 
@@ -5021,7 +5039,6 @@ SpatialEditor::SpatialEditor(EditorNode *p_editor) {
 	ED_SHORTCUT("spatial_editor/left_view", TTR("Left View"), KEY_MASK_ALT + KEY_KP_3);
 	ED_SHORTCUT("spatial_editor/right_view", TTR("Right View"), KEY_KP_3);
 	ED_SHORTCUT("spatial_editor/switch_perspective_orthogonal", TTR("Switch Perspective/Orthogonal view"), KEY_KP_5);
-	ED_SHORTCUT("spatial_editor/snap", TTR("Snap"), KEY_S);
 	ED_SHORTCUT("spatial_editor/insert_anim_key", TTR("Insert Animation Key"), KEY_K);
 	ED_SHORTCUT("spatial_editor/focus_origin", TTR("Focus Origin"), KEY_O);
 	ED_SHORTCUT("spatial_editor/focus_selection", TTR("Focus Selection"), KEY_F);
@@ -5043,11 +5060,7 @@ SpatialEditor::SpatialEditor(EditorNode *p_editor) {
 	hbc_menu->add_child(transform_menu);
 
 	p = transform_menu->get_popup();
-	p->add_check_shortcut(ED_SHORTCUT("spatial_editor/use_snap", TTR("Use Snap")), MENU_TRANSFORM_USE_SNAP);
 	p->add_shortcut(ED_SHORTCUT("spatial_editor/configure_snap", TTR("Configure Snap..")), MENU_TRANSFORM_CONFIGURE_SNAP);
-	p->add_separator();
-	p->add_check_shortcut(ED_SHORTCUT("spatial_editor/local_coords", TTR("Local Coords")), MENU_TRANSFORM_LOCAL_COORDS);
-	//p->set_item_checked(p->get_item_count()-1,true);
 	p->add_separator();
 	p->add_shortcut(ED_SHORTCUT("spatial_editor/transform_dialog", TTR("Transform Dialog..")), MENU_TRANSFORM_DIALOG);
 

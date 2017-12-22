@@ -188,7 +188,10 @@ def configure(env):
         else:
             VC_PATH = ""
 
-        if (env["openmp"]):
+        if (env["use_lto"]):
+            env.Append(CCFLAGS=['/GL'])
+            env.Append(LINKFLAGS=['/LTCG'])
+        if env['tools'] and env['openmp']:
             env.Append(CPPFLAGS=['/openmp'])
 
         env.Append(CCFLAGS=["/I" + p for p in os.getenv("INCLUDE").split(";")])
@@ -267,7 +270,7 @@ def configure(env):
             env.Append(CCFLAGS=['-flto'])
             env.Append(LINKFLAGS=['-flto=' + str(env.GetOption("num_jobs"))])
 
-        if (env["openmp"]):
+        if env['tools'] and env['openmp']:
             env.Append(CPPFLAGS=['-fopenmp'])
             env.Append(LINKFLAGS=['-fopenmp'])
 

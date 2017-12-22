@@ -1529,6 +1529,8 @@ SkeletonSpatialGizmo::SkeletonSpatialGizmo(Skeleton *p_skel) {
 	skel = p_skel;
 	set_spatial_node(p_skel);
 }
+
+// FIXME: Kept as reference for reimplementation in 3.1+
 #if 0
 void RoomSpatialGizmo::redraw() {
 
@@ -2827,11 +2829,7 @@ void BakedIndirectLightGizmo::redraw() {
 	Vector<Vector3> lines;
 	Vector3 extents = baker->get_extents();
 
-	static const int subdivs[BakedLightmap::SUBDIV_MAX] = { 64, 128, 256, 512 };
-
 	AABB aabb = AABB(-extents, extents * 2);
-	int subdiv = subdivs[baker->get_bake_subdiv()];
-	float cell_size = aabb.get_longest_axis_size() / subdiv;
 
 	for (int i = 0; i < 12; i++) {
 		Vector3 a, b;

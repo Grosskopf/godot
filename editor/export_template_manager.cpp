@@ -176,7 +176,7 @@ void ExportTemplateManager::_uninstall_template_confirm() {
 	_update_template_list();
 }
 
-void ExportTemplateManager::_install_from_file(const String &p_file) {
+void ExportTemplateManager::_install_from_file(const String &p_file, bool p_use_progress) {
 
 	FileAccess *fa = NULL;
 	zlib_filefunc_def io = zipio_create_io_from_file(&fa);
@@ -259,7 +259,10 @@ void ExportTemplateManager::_install_from_file(const String &p_file) {
 
 	ret = unzGoToFirstFile(pkg);
 
-	EditorProgress p("ltask", TTR("Extracting Export Templates"), fc);
+	EditorProgress *p = NULL;
+	if (p_use_progress) {
+		p = memnew(EditorProgress("ltask", TTR("Extracting Export Templates"), fc));
+	}
 
 	fc = 0;
 
@@ -270,7 +273,7 @@ void ExportTemplateManager::_install_from_file(const String &p_file) {
 		char fname[16384];
 		unzGetCurrentFileInfo(pkg, &info, fname, 16384, NULL, 0, NULL, 0);
 
-		String file = fname;
+		String file = String(fname).get_file();
 
 		Vector<uint8_t> data;
 		data.resize(info.uncompressed_size);
@@ -280,26 +283,28 @@ void ExportTemplateManager::_install_from_file(const String &p_file) {
 		unzReadCurrentFile(pkg, data.ptrw(), data.size());
 		unzCloseCurrentFile(pkg);
 
-		print_line(fname);
-		/*
-		for(int i=0;i<512;i++) {
-			print_line(itos(data[i]));
+		if (p) {
+			p->step(TTR("Importing:") + " " + file, fc);
 		}
-		*/
-
-		file = file.get_file();
-
-		p.step(TTR("Importing:") + " " + file, fc);
 
 		FileAccess *f = FileAccess::open(template_path.plus_file(file), FileAccess::WRITE);
 
-		ERR_CONTINUE(!f);
+		if (!f) {
+			ret = unzGoToNextFile(pkg);
+			fc++;
+			ERR_CONTINUE(!f);
+		}
+
 		f->store_buffer(data.ptr(), data.size());
 
 		memdelete(f);
 
 		ret = unzGoToNextFile(pkg);
 		fc++;
+	}
+
+	if (p) {
+		memdelete(p);
 	}
 
 	unzClose(pkg);
@@ -405,7 +410,7 @@ void ExportTemplateManager::_http_download_templates_completed(int p_status, int
 					memdelete(f);
 					template_list_state->set_text(TTR("Download Complete."));
 					template_downloader->hide();
-					_install_from_file(path);
+					_install_from_file(path, false);
 				}
 			}
 		} break;
@@ -547,7 +552,7 @@ ExportTemplateManager::ExportTemplateManager() {
 	template_open->add_filter("*.tpz ; Godot Export Templates");
 	template_open->set_access(FileDialog::ACCESS_FILESYSTEM);
 	template_open->set_mode(FileDialog::MODE_OPEN_FILE);
-	template_open->connect("file_selected", this, "_install_from_file");
+	template_open->connect("file_selected", this, "_install_from_file", varray(true));
 	add_child(template_open);
 
 	set_title(TTR("Export Template Manager"));

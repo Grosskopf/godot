@@ -58,6 +58,7 @@ class OS {
 	int _exit_code;
 	int _orientation;
 	bool _allow_hidpi;
+	bool _use_vsync;
 
 	char *last_error;
 
@@ -435,8 +436,16 @@ public:
 
 	virtual void set_context(int p_context);
 
-	virtual void set_use_vsync(bool p_enable);
-	virtual bool is_vsync_enabled() const;
+	//amazing hack because OpenGL needs this to be set on a separate thread..
+	//also core can't access servers, so a callback must be used
+	typedef void (*SwitchVSyncCallbackInThread)(bool);
+
+	static SwitchVSyncCallbackInThread switch_vsync_function;
+	void set_use_vsync(bool p_enable);
+	bool is_vsync_enabled() const;
+
+	//real, actual overridable function to switch vsync, which needs to be called from graphics thread if needed
+	virtual void _set_use_vsync(bool p_enable) {}
 
 	virtual OS::PowerState get_power_state();
 	virtual int get_power_seconds_left();
@@ -444,13 +453,6 @@ public:
 
 	virtual void force_process_input(){};
 	bool has_feature(const String &p_feature);
-
-	/**
-	 * Returns the stack bottom of the main thread of the application.
-	 * This may be of use when integrating languages with garbage collectors that
-	 * need to check whether a pointer is on the stack.
-	 */
-	virtual void *get_stack_bottom() const;
 
 	bool is_hidpi_allowed() const { return _allow_hidpi; }
 

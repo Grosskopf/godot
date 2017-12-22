@@ -42,6 +42,7 @@
 #include "script_debugger_remote.h"
 #include "servers/register_server_types.h"
 #include "splash.gen.h"
+#include "splash_editor.gen.h"
 
 #include "input_map.h"
 #include "io/resource_loader.h"
@@ -1051,7 +1052,12 @@ Error Main::setup2(Thread::ID p_main_tid_override) {
 #ifndef NO_DEFAULT_BOOT_LOGO
 
 			MAIN_PRINT("Main: Create bootsplash");
+#if defined(TOOLS_ENABLED) && !defined(NO_EDITOR_SPLASH)
+
+			Ref<Image> splash = editor ? memnew(Image(boot_splash_editor_png)) : memnew(Image(boot_splash_png));
+#else
 			Ref<Image> splash = memnew(Image(boot_splash_png));
+#endif
 
 			MAIN_PRINT("Main: ClearColor");
 			VisualServer::get_singleton()->set_default_clear_color(boot_splash_bg_color);
@@ -1442,6 +1448,9 @@ bool Main::start() {
 			bool snap_controls = GLOBAL_DEF("gui/common/snap_controls_to_pixels", true);
 			sml->get_root()->set_snap_controls_to_pixels(snap_controls);
 
+			bool font_oversampling = GLOBAL_DEF("rendering/quality/dynamic_fonts/use_oversampling", false);
+			sml->set_use_font_oversampling(font_oversampling);
+
 		} else {
 			GLOBAL_DEF("display/window/stretch/mode", "disabled");
 			ProjectSettings::get_singleton()->set_custom_property_info("display/window/stretch/mode", PropertyInfo(Variant::STRING, "display/window/stretch/mode", PROPERTY_HINT_ENUM, "disabled,2d,viewport"));
@@ -1452,6 +1461,7 @@ bool Main::start() {
 			sml->set_auto_accept_quit(GLOBAL_DEF("application/config/auto_accept_quit", true));
 			sml->set_quit_on_go_back(GLOBAL_DEF("application/config/quit_on_go_back", true));
 			GLOBAL_DEF("gui/common/snap_controls_to_pixels", true);
+			GLOBAL_DEF("rendering/quality/dynamic_fonts/use_oversampling", false);
 		}
 
 		String local_game_path;
@@ -1861,6 +1871,7 @@ void Main::cleanup() {
 	if (engine)
 		memdelete(engine);
 
+	message_queue->flush();
 	memdelete(message_queue);
 
 	unregister_core_driver_types();
