@@ -42,9 +42,12 @@ class AudioDriverPulseAudio : public AudioDriver {
 	Mutex *mutex;
 
 	pa_simple *pulse;
+	pa_simple *pulse_mic;
 
 	Vector<int32_t> samples_in;
 	Vector<int16_t> samples_out;
+	Vector<int16_t> samples_mic_in;
+	Vector<int32_t> samples_mic_out;
 
 	unsigned int mix_rate;
 	unsigned int buffer_frames;

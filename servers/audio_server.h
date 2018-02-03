@@ -44,7 +44,7 @@ class AudioDriver {
 	uint64_t _mix_amount;
 
 protected:
-	void audio_server_process(int p_frames, int32_t *p_buffer, bool p_update_mix_time = true);
+	void audio_server_process(int p_frames, int32_t *p_buffer, int32_t *p_buffer_mic=NULL, bool p_update_mix_time = true);
 	void update_mix_time(int p_frames);
 
 public:
@@ -130,12 +130,15 @@ private:
 	uint32_t channel_disable_frames;
 
 	int to_mix;
+	int microphonebus = -1;
+	int lastbuffersize=0;
 
 	struct Bus {
 
 		StringName name;
 		bool solo;
 		bool mute;
+		bool microphone;
 		bool bypass;
 
 		bool soloed;
@@ -200,7 +203,7 @@ private:
 	Set<CallbackItem> callbacks;
 
 	friend class AudioDriver;
-	void _driver_process(int p_frames, int32_t *p_buffer);
+	void _driver_process(int p_frames, int32_t *p_buffer, int32_t *p_buffer_mic);
 
 protected:
 	static void _bind_methods();
@@ -244,6 +247,9 @@ public:
 
 	void set_bus_mute(int p_bus, bool p_enable);
 	bool is_bus_mute(int p_bus) const;
+
+	void set_bus_microphone(int p_bus, bool p_enable);
+	bool is_bus_microphone(int p_bus) const;
 
 	void set_bus_bypass_effects(int p_bus, bool p_enable);
 	bool is_bus_bypassing_effects(int p_bus) const;
@@ -314,6 +320,7 @@ class AudioBusLayout : public Resource {
 		bool solo;
 		bool mute;
 		bool bypass;
+		bool microphone;
 
 		struct Effect {
 			Ref<AudioEffect> effect;
@@ -330,6 +337,7 @@ class AudioBusLayout : public Resource {
 			mute = false;
 			bypass = false;
 			volume_db = 0;
+			microphone = false;
 		}
 	};
 

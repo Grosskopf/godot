@@ -52,6 +52,7 @@ void EditorAudioBus::_notification(int p_what) {
 
 		solo->set_icon(get_icon("AudioBusSolo", "EditorIcons"));
 		mute->set_icon(get_icon("AudioBusMute", "EditorIcons"));
+		microphone->set_icon(get_icon("AudioBusMicrophone", "EditorIcons"));
 		bypass->set_icon(get_icon("AudioBusBypass", "EditorIcons"));
 
 		bus_options->set_icon(get_icon("GuiMiniTabMenu", "EditorIcons"));
@@ -161,6 +162,7 @@ void EditorAudioBus::update_bus() {
 
 	solo->set_pressed(AudioServer::get_singleton()->is_bus_solo(index));
 	mute->set_pressed(AudioServer::get_singleton()->is_bus_mute(index));
+	microphone->set_pressed(AudioServer::get_singleton()->is_bus_microphone(index));
 	bypass->set_pressed(AudioServer::get_singleton()->is_bus_bypassing_effects(index));
 	// effects..
 	effects->clear();
@@ -282,6 +284,20 @@ void EditorAudioBus::_mute_toggled() {
 	ur->create_action(TTR("Toggle Audio Bus Mute"));
 	ur->add_do_method(AudioServer::get_singleton(), "set_bus_mute", get_index(), mute->is_pressed());
 	ur->add_undo_method(AudioServer::get_singleton(), "set_bus_mute", get_index(), AudioServer::get_singleton()->is_bus_mute(get_index()));
+	ur->add_do_method(buses, "_update_bus", get_index());
+	ur->add_undo_method(buses, "_update_bus", get_index());
+	ur->commit_action();
+
+	updating_bus = false;
+}
+void EditorAudioBus::_microphone_toggled() {
+
+	updating_bus = true;
+
+	UndoRedo *ur = EditorNode::get_singleton()->get_undo_redo();
+	ur->create_action(TTR("Toggle Audio Bus Microphone"));
+	ur->add_do_method(AudioServer::get_singleton(), "set_bus_microphone", get_index(), microphone->is_pressed());
+	ur->add_undo_method(AudioServer::get_singleton(), "set_bus_microphone", get_index(), AudioServer::get_singleton()->is_bus_microphone(get_index()));
 	ur->add_do_method(buses, "_update_bus", get_index());
 	ur->add_undo_method(buses, "_update_bus", get_index());
 	ur->commit_action();
@@ -601,6 +617,7 @@ void EditorAudioBus::_bind_methods() {
 	ClassDB::bind_method("_volume_db_changed", &EditorAudioBus::_volume_db_changed);
 	ClassDB::bind_method("_solo_toggled", &EditorAudioBus::_solo_toggled);
 	ClassDB::bind_method("_mute_toggled", &EditorAudioBus::_mute_toggled);
+	ClassDB::bind_method("_microphone_toggled", &EditorAudioBus::_microphone_toggled);
 	ClassDB::bind_method("_bypass_toggled", &EditorAudioBus::_bypass_toggled);
 	ClassDB::bind_method("_name_focus_exit", &EditorAudioBus::_name_focus_exit);
 	ClassDB::bind_method("_send_selected", &EditorAudioBus::_send_selected);
@@ -655,6 +672,12 @@ EditorAudioBus::EditorAudioBus(EditorAudioBuses *p_buses, bool p_is_master) {
 	mute->set_focus_mode(FOCUS_NONE);
 	mute->connect("pressed", this, "_mute_toggled");
 	hbc->add_child(mute);
+	microphone = memnew(ToolButton);
+	microphone->set_toggle_mode(true);
+	microphone->set_tooltip(TTR("Microphone"));
+	microphone->set_focus_mode(FOCUS_NONE);
+	microphone->connect("pressed", this, "_microphone_toggled");
+	hbc->add_child(microphone);
 	bypass = memnew(ToolButton);
 	bypass->set_toggle_mode(true);
 	bypass->set_tooltip(TTR("Bypass"));
@@ -899,6 +922,7 @@ void EditorAudioBuses::_delete_bus(Object *p_which) {
 	ur->add_undo_method(AudioServer::get_singleton(), "set_bus_send", index, AudioServer::get_singleton()->get_bus_send(index));
 	ur->add_undo_method(AudioServer::get_singleton(), "set_bus_solo", index, AudioServer::get_singleton()->is_bus_solo(index));
 	ur->add_undo_method(AudioServer::get_singleton(), "set_bus_mute", index, AudioServer::get_singleton()->is_bus_mute(index));
+	ur->add_undo_method(AudioServer::get_singleton(), "set_bus_microphone", index, AudioServer::get_singleton()->is_bus_microphone(index));
 	ur->add_undo_method(AudioServer::get_singleton(), "set_bus_bypass_effects", index, AudioServer::get_singleton()->is_bus_bypassing_effects(index));
 	for (int i = 0; i < AudioServer::get_singleton()->get_bus_effect_count(index); i++) {
 

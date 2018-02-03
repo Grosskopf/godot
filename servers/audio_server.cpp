@@ -55,13 +55,13 @@ void AudioDriver::set_singleton() {
 	singleton = this;
 }
 
-void AudioDriver::audio_server_process(int p_frames, int32_t *p_buffer, bool p_update_mix_time) {
+void AudioDriver::audio_server_process(int p_frames, int32_t *p_buffer, int32_t *p_buffer_mic, bool p_update_mix_time) {
 
 	if (p_update_mix_time)
 		update_mix_time(p_frames);
 
 	if (AudioServer::get_singleton())
-		AudioServer::get_singleton()->_driver_process(p_frames, p_buffer);
+		AudioServer::get_singleton()->_driver_process(p_frames, p_buffer,p_buffer_mic);
 }
 
 void AudioDriver::update_mix_time(int p_frames) {
@@ -168,7 +168,7 @@ AudioDriver *AudioDriverManager::get_driver(int p_driver) {
 //////////////////////////////////////////////
 //////////////////////////////////////////////
 
-void AudioServer::_driver_process(int p_frames, int32_t *p_buffer) {
+void AudioServer::_driver_process(int p_frames, int32_t *p_buffer, int32_t *p_buffer_mic) {
 
 	int todo = p_frames;
 
@@ -181,7 +181,6 @@ void AudioServer::_driver_process(int p_frames, int32_t *p_buffer) {
 		int to_copy = MIN(to_mix, todo);
 
 		Bus *master = buses[0];
-
 		int from = buffer_size - to_mix;
 		int from_buf = p_frames - todo;
 
@@ -216,7 +215,43 @@ void AudioServer::_driver_process(int p_frames, int32_t *p_buffer) {
 		todo -= to_copy;
 		to_mix -= to_copy;
 	}
+	todo=lastbuffersize;
+	while (todo){
 
+		to_mix = buffer_size;
+		int to_copy = MIN(to_mix, todo);
+		int from_buf = p_frames - todo;
+		int from = buffer_size - to_mix;
+		Bus *master_mic = NULL;
+		bool has_mic=false;
+		if(!(microphonebus<0)){
+			has_mic=true;
+			 master_mic = buses[microphonebus];
+		}
+
+		int cs_mic = 1;
+		for (int k = 0; has_mic && k < cs_mic; k++){
+			//if(master_mic->channels[k].active){
+			AudioFrame *buf = master_mic->channels[k].buffer.ptrw();
+			for(int j = 0; j < to_copy; j++) {
+				int32_t vl = p_buffer_mic[(from_buf + j)* (cs_mic * 2) + k * 2 + 0] >> 11;
+				int32_t vr = p_buffer_mic[(from_buf + j)* (cs_mic * 2) + k * 2 + 1] >> 11;
+				float l=(float)vl/((1 << 20) - 1);
+				float r=(float)vr/((1 << 20) - 1);
+				//std::cout<<l<<"   "<<r<<"\n";
+				//print_line("Audiotest"+ itos(vl)+"/"+ itos(vr));
+				*buf+= AudioFrame(l,r);
+//					buf[from+j].l=l;
+//					buf[from+j].r=r;
+			}
+			//}
+		}
+
+		todo -= to_copy;
+		to_mix -= to_copy;
+
+	}
+	lastbuffersize=p_frames;
 #ifdef DEBUG_ENABLED
 	if (OS::get_singleton() && OS::get_singleton()->is_stdout_verbose()) {
 		static uint64_t first_ticks = 0;
@@ -333,7 +368,7 @@ void AudioServer::_mix_step() {
 
 		Bus *send = NULL;
 
-		if (i > 0) {
+		if (i > 0&&!bus->microphone) {
 			//everything has a send save for master bus
 			if (!bus_map.has(bus->send)) {
 				send = buses[0];
@@ -716,6 +751,22 @@ bool AudioServer::is_bus_mute(int p_bus) const {
 	ERR_FAIL_INDEX_V(p_bus, buses.size(), false);
 
 	return buses[p_bus]->mute;
+}
+void AudioServer::set_bus_microphone(int p_bus, bool p_enable) {
+
+	ERR_FAIL_INDEX(p_bus, buses.size());
+
+	MARK_EDITED
+
+	buses[p_bus]->microphone = p_enable;
+	if(microphonebus<p_bus)
+		microphonebus=p_bus;
+}
+bool AudioServer::is_bus_microphone(int p_bus) const {
+
+	ERR_FAIL_INDEX_V(p_bus, buses.size(), false);
+
+	return buses[p_bus]->microphone;
 }
 
 void AudioServer::set_bus_bypass_effects(int p_bus, bool p_enable) {
@@ -1109,6 +1160,9 @@ void AudioServer::_bind_methods() {
 	ClassDB::bind_method(D_METHOD("set_bus_mute", "bus_idx", "enable"), &AudioServer::set_bus_mute);
 	ClassDB::bind_method(D_METHOD("is_bus_mute", "bus_idx"), &AudioServer::is_bus_mute);
 
+	ClassDB::bind_method(D_METHOD("set_bus_microphone", "bus_idx", "enable"), &AudioServer::set_bus_microphone);
+	ClassDB::bind_method(D_METHOD("is_bus_microphone", "bus_idx"), &AudioServer::is_bus_microphone);
+
 	ClassDB::bind_method(D_METHOD("set_bus_bypass_effects", "bus_idx", "enable"), &AudioServer::set_bus_bypass_effects);
 	ClassDB::bind_method(D_METHOD("is_bus_bypassing_effects", "bus_idx"), &AudioServer::is_bus_bypassing_effects);
 
@@ -1178,6 +1232,8 @@ bool AudioBusLayout::_set(const StringName &p_name, const Variant &p_value) {
 			bus.solo = p_value;
 		} else if (what == "mute") {
 			bus.mute = p_value;
+		}  else if (what == "microphone") {
+			bus.microphone = p_value;
 		} else if (what == "bypass_fx") {
 			bus.bypass = p_value;
 		} else if (what == "volume_db") {
@@ -1231,6 +1287,8 @@ bool AudioBusLayout::_get(const StringName &p_name, Variant &r_ret) const {
 			r_ret = bus.solo;
 		} else if (what == "mute") {
 			r_ret = bus.mute;
+		} else if (what == "microphone") {
+			r_ret = bus.microphone;
 		} else if (what == "bypass_fx") {
 			r_ret = bus.bypass;
 		} else if (what == "volume_db") {
@@ -1270,6 +1328,7 @@ void AudioBusLayout::_get_property_list(List<PropertyInfo> *p_list) const {
 		p_list->push_back(PropertyInfo(Variant::STRING, "bus/" + itos(i) + "/name", PROPERTY_HINT_NONE, "", PROPERTY_USAGE_NOEDITOR));
 		p_list->push_back(PropertyInfo(Variant::BOOL, "bus/" + itos(i) + "/solo", PROPERTY_HINT_NONE, "", PROPERTY_USAGE_NOEDITOR));
 		p_list->push_back(PropertyInfo(Variant::BOOL, "bus/" + itos(i) + "/mute", PROPERTY_HINT_NONE, "", PROPERTY_USAGE_NOEDITOR));
+		p_list->push_back(PropertyInfo(Variant::BOOL, "bus/" + itos(i) + "/microphone", PROPERTY_HINT_NONE, "", PROPERTY_USAGE_NOEDITOR));
 		p_list->push_back(PropertyInfo(Variant::BOOL, "bus/" + itos(i) + "/bypass_fx", PROPERTY_HINT_NONE, "", PROPERTY_USAGE_NOEDITOR));
 		p_list->push_back(PropertyInfo(Variant::REAL, "bus/" + itos(i) + "/volume_db", PROPERTY_HINT_NONE, "", PROPERTY_USAGE_NOEDITOR));
 		p_list->push_back(PropertyInfo(Variant::REAL, "bus/" + itos(i) + "/send", PROPERTY_HINT_NONE, "", PROPERTY_USAGE_NOEDITOR));

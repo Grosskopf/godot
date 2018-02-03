@@ -78,6 +78,7 @@ class EditorAudioBus : public PanelContainer {
 
 	Button *solo;
 	Button *mute;
+	Button *microphone;
 	Button *bypass;
 
 	Tree *effects;
@@ -94,6 +95,7 @@ class EditorAudioBus : public PanelContainer {
 	void _volume_db_changed(float p_db);
 	void _solo_toggled();
 	void _mute_toggled();
+	void _microphone_toggled();
 	void _bypass_toggled();
 	void _send_selected(int p_which);
 	void _effect_edited();

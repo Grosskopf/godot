@@ -42,9 +42,11 @@ class AudioDriverALSA : public AudioDriver {
 	Mutex *mutex;
 
 	snd_pcm_t *pcm_handle;
+	snd_pcm_t *pcm_handle_mic;
 
 	int32_t *samples_in;
 	int16_t *samples_out;
+	int16_t *samples_mic;
 
 	static void thread_func(void *p_udata);
 
@@ -60,6 +62,7 @@ class AudioDriverALSA : public AudioDriver {
 	bool thread_exited;
 	mutable bool exit_thread;
 	bool pcm_open;
+	bool pcm_open_mic;
 
 public:
 	const char *get_name() const {

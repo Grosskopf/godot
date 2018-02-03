@@ -746,6 +746,155 @@ StreamTexture::~StreamTexture() {
 	VS::get_singleton()->free(texture);
 }
 
+//////////////////////////////////////////
+
+uint32_t WebcamTexture::get_flags() const {
+
+	return flags;
+}
+Image::Format WebcamTexture::get_format() const {
+
+	return format;
+}
+
+Error WebcamTexture::_load_data(int &tw, int &th, int &flags, Ref<Image> &image, int p_size_limit) {
+
+	ERR_FAIL_COND_V(image.is_null(), ERR_INVALID_PARAMETER);
+using namespace cv;
+	///TODO ADD WEBCAM SHIT HERE!
+	//cap=cv::VideoCapture(0);
+	VideoCapture cap(0);
+	if(!cap.isOpened())  // check if we succeeded
+		return ERR_CANT_OPEN;
+
+	Mat frame, imgconv;
+	cap.read(frame);
+
+	tw = frame.rows;
+	th = frame.cols;
+	flags = 0; //texture flags!
+	uint32_t df = 0; //data format
+	PoolVector<uint8_t> img_data;
+
+	frame.convertTo(imgconv,CV_8U);
+	//img_data = imgconv.ptr();
+	for(int i = 0; i < imgconv.rows; ++i) {
+		uint8_t *ptrarray = imgconv.ptr<uint8_t>(i);
+		for(int ii = 0; ii < imgconv.cols; ++ii) {
+			img_data.insert(i*imgconv.cols+ii,ptrarray[ii]);
+		}
+	}
+	Image::Format format = (Image::Format)(df & FORMAT_MASK_IMAGE_FORMAT);
+	image->create(tw, th, false, format, img_data);
+	//image->create(&frame.data);
+	frame.release();
+	imgconv.release();
+	return OK; //unreachable
+}
+
+Error WebcamTexture::load(const String &p_path) {
+
+	int lw, lh, lflags;
+	Ref<Image> image;
+	image.instance();
+	Error err = _load_data(lw, lh, lflags, image);
+	if (err)
+		return err;
+
+	VS::get_singleton()->texture_allocate(texture, image->get_width(), image->get_height(), image->get_format(), lflags);
+	VS::get_singleton()->texture_set_data(texture, image);
+
+	w = lw;
+	h = lh;
+	flags = lflags;
+	format = image->get_format();
+
+	return OK;
+}
+String WebcamTexture::get_load_path() const {
+
+	return "";
+}
+
+int WebcamTexture::get_width() const {
+
+	return w;
+}
+int WebcamTexture::get_height() const {
+
+	return h;
+}
+RID WebcamTexture::get_rid() const {
+
+	return texture;
+}
+
+void WebcamTexture::draw(RID p_canvas_item, const Point2 &p_pos, const Color &p_modulate, bool p_transpose, const Ref<Texture> &p_normal_map) const {
+
+	if ((w | h) == 0)
+		return;
+	RID normal_rid = p_normal_map.is_valid() ? p_normal_map->get_rid() : RID();
+	VisualServer::get_singleton()->canvas_item_add_texture_rect(p_canvas_item, Rect2(p_pos, Size2(w, h)), texture, false, p_modulate, p_transpose, normal_rid);
+}
+void WebcamTexture::draw_rect(RID p_canvas_item, const Rect2 &p_rect, bool p_tile, const Color &p_modulate, bool p_transpose, const Ref<Texture> &p_normal_map) const {
+
+	if ((w | h) == 0)
+		return;
+	RID normal_rid = p_normal_map.is_valid() ? p_normal_map->get_rid() : RID();
+	VisualServer::get_singleton()->canvas_item_add_texture_rect(p_canvas_item, p_rect, texture, p_tile, p_modulate, p_transpose, normal_rid);
+}
+void WebcamTexture::draw_rect_region(RID p_canvas_item, const Rect2 &p_rect, const Rect2 &p_src_rect, const Color &p_modulate, bool p_transpose, const Ref<Texture> &p_normal_map, bool p_clip_uv) const {
+
+	if ((w | h) == 0)
+		return;
+	RID normal_rid = p_normal_map.is_valid() ? p_normal_map->get_rid() : RID();
+	VisualServer::get_singleton()->canvas_item_add_texture_rect_region(p_canvas_item, p_rect, texture, p_src_rect, p_modulate, p_transpose, normal_rid, p_clip_uv);
+}
+
+bool WebcamTexture::has_alpha() const {
+
+	return false;
+}
+
+Ref<Image> WebcamTexture::get_data() const {
+
+	return VS::get_singleton()->texture_get_data(texture);
+}
+
+void WebcamTexture::set_flags(uint32_t p_flags) {
+}
+
+void WebcamTexture::reload_from_file() {
+
+	String path = get_path();
+	load(path);
+}
+
+void WebcamTexture::_bind_methods() {
+
+	ClassDB::bind_method(D_METHOD("load", "path"), &WebcamTexture::load);
+	ClassDB::bind_method(D_METHOD("get_load_path"), &WebcamTexture::get_load_path);
+
+	ADD_PROPERTY(PropertyInfo(Variant::STRING, "load_path", PROPERTY_HINT_FILE, "*.stex"), "load", "get_load_path");
+}
+
+WebcamTexture::WebcamTexture() {
+
+	format = Image::FORMAT_MAX;
+	flags = 0;
+	w = 0;
+	h = 0;
+
+	texture = VS::get_singleton()->texture_create();
+	//if(!cap.isOpened())  // check if we succeeded
+    //    return ERR_CANT_OPEN;
+}
+
+WebcamTexture::~WebcamTexture() {
+
+	VS::get_singleton()->free(texture);
+}
+
 RES ResourceFormatLoaderStreamTexture::load(const String &p_path, const String &p_original_path, Error *r_error) {
 
 	Ref<StreamTexture> st;

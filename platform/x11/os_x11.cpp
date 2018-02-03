@@ -27,13 +27,13 @@
 /* TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE     */
 /* SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.                */
 /*************************************************************************/
+#include "servers/visual/visual_server_raster.h"
+#include "servers/visual/visual_server_wrap_mt.h"
 #include "os_x11.h"
 #include "drivers/gles3/rasterizer_gles3.h"
 #include "errno.h"
 #include "key_mapping_x11.h"
 #include "print_string.h"
-#include "servers/visual/visual_server_raster.h"
-#include "servers/visual/visual_server_wrap_mt.h"
 
 #ifdef HAVE_MNTENT
 #include <mntent.h>

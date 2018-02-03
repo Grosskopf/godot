@@ -42,6 +42,7 @@ Error AudioDriverALSA::init() {
 	thread_exited = false;
 	exit_thread = false;
 	pcm_open = false;
+	pcm_open_mic = false;
 	samples_in = NULL;
 	samples_out = NULL;
 
@@ -51,6 +52,7 @@ Error AudioDriverALSA::init() {
 
 	int status;
 	snd_pcm_hw_params_t *hwparams;
+	snd_pcm_hw_params_t *hwparams_mic;
 	snd_pcm_sw_params_t *swparams;
 
 #define CHECK_FAIL(m_cond)                                       \
@@ -65,23 +67,37 @@ Error AudioDriverALSA::init() {
 	//4 chans - "plug:surround40";
 
 	status = snd_pcm_open(&pcm_handle, "default", SND_PCM_STREAM_PLAYBACK, SND_PCM_NONBLOCK);
+	status = snd_pcm_open(&pcm_handle_mic, "default", SND_PCM_STREAM_CAPTURE, 0);
 
 	ERR_FAIL_COND_V(status < 0, ERR_CANT_OPEN);
 
 	snd_pcm_hw_params_alloca(&hwparams);
+	snd_pcm_hw_params_alloca(&hwparams_mic);
 
 	status = snd_pcm_hw_params_any(pcm_handle, hwparams);
 	CHECK_FAIL(status < 0);
 
+	status = snd_pcm_hw_params_any(pcm_handle_mic, hwparams_mic);
+	CHECK_FAIL(status < 0);
+
 	status = snd_pcm_hw_params_set_access(pcm_handle, hwparams, SND_PCM_ACCESS_RW_INTERLEAVED);
+	CHECK_FAIL(status < 0);
+
+	status = snd_pcm_hw_params_set_access(pcm_handle_mic, hwparams_mic, SND_PCM_ACCESS_RW_INTERLEAVED);
 	CHECK_FAIL(status < 0);
 
 	//not interested in anything else
 	status = snd_pcm_hw_params_set_format(pcm_handle, hwparams, SND_PCM_FORMAT_S16_LE);
 	CHECK_FAIL(status < 0);
 
+	status = snd_pcm_hw_params_set_format(pcm_handle_mic, hwparams_mic, SND_PCM_FORMAT_S16_LE);
+	CHECK_FAIL(status < 0);
+
 	//todo: support 4 and 6
 	status = snd_pcm_hw_params_set_channels(pcm_handle, hwparams, 2);
+	CHECK_FAIL(status < 0);
+
+	status = snd_pcm_hw_params_set_channels(pcm_handle_mic, hwparams_mic, 2);
 	CHECK_FAIL(status < 0);
 
 	status = snd_pcm_hw_params_set_rate_near(pcm_handle, hwparams, &mix_rate, NULL);
@@ -110,6 +126,9 @@ Error AudioDriverALSA::init() {
 	CHECK_FAIL(status < 0);
 
 	status = snd_pcm_hw_params(pcm_handle, hwparams);
+	CHECK_FAIL(status < 0);
+
+	status = snd_pcm_hw_params(pcm_handle_mic, hwparams_mic);
 	CHECK_FAIL(status < 0);
 
 	//snd_pcm_hw_params_free(&hwparams);
@@ -167,7 +186,9 @@ void AudioDriverALSA::thread_func(void *p_udata) {
 			if (ad->exit_thread)
 				break;
 			uint8_t *src = (uint8_t *)ad->samples_out;
+			uint8_t *mic_buff = (uint8_t *)ad->samples_mic;
 			int wrote = snd_pcm_writei(ad->pcm_handle, (void *)(src + (total * ad->channels)), todo);
+			int read = snd_pcm_readi(ad->pcm_handle_mic, (void *)(src + (total * ad->channels)), todo);
 
 			if (wrote < 0) {
 				if (ad->exit_thread)
@@ -236,6 +257,8 @@ void AudioDriverALSA::finish() {
 
 	if (pcm_open)
 		snd_pcm_close(pcm_handle);
+	if (pcm_open_mic)
+		snd_pcm_close(pcm_handle_mic);
 
 	if (samples_in) {
 		memdelete_arr(samples_in);

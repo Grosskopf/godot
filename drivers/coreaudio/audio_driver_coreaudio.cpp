@@ -109,6 +109,7 @@ Error AudioDriverCoreAudio::initDevice() {
 
 	buffer_size = buffer_frames * channels;
 	samples_in.resize(buffer_size);
+	samples_mic_in.resize(buffer_size);
 
 	if (OS::get_singleton()->is_stdout_verbose()) {
 		print_line("CoreAudio: detected " + itos(channels) + " channels");

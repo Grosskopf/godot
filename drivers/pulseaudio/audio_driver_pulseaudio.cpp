@@ -202,14 +202,31 @@ Error AudioDriverPulseAudio::init() {
 			NULL, // use default channel map
 			&attr, // use buffering attributes from above
 			&error_code);
+	int error_code_mic;
+	pulse_mic = pa_simple_new(NULL, // default server
+			"Godot_Mic", // application name
+			PA_STREAM_RECORD,
+			NULL, // default device
+			"record", // stream description
+			&spec,
+			NULL, // use default channel map
+			NULL, // use buffering attributes from above
+			&error_code_mic);
 
 	if (pulse == NULL) {
 		fprintf(stderr, "PulseAudio ERR: %s\n", pa_strerror(error_code));
 		ERR_FAIL_COND_V(pulse == NULL, ERR_CANT_OPEN);
 	}
 
+	if (pulse_mic == NULL) {
+		fprintf(stderr, "PulseAudio ERR: %s\n", pa_strerror(error_code_mic));
+		ERR_FAIL_COND_V(pulse_mic == NULL, ERR_CANT_OPEN);
+	}
+
 	samples_in.resize(buffer_size);
+	samples_mic_in.resize(buffer_size);
 	samples_out.resize(buffer_size);
+	samples_mic_out.resize(buffer_size);
 
 	mutex = Mutex::create();
 	thread = Thread::create(AudioDriverPulseAudio::thread_func, this);
@@ -236,24 +253,37 @@ void AudioDriverPulseAudio::thread_func(void *p_udata) {
 		if (!ad->active) {
 			for (unsigned int i = 0; i < ad->buffer_size; i++) {
 				ad->samples_out[i] = 0;
+				ad->samples_mic_in[i] = 0;
 			}
 
 		} else {
 			ad->lock();
 
-			ad->audio_server_process(ad->buffer_frames, ad->samples_in.ptrw());
+			ad->audio_server_process(ad->buffer_frames, ad->samples_in.ptrw(),ad->samples_mic_out.ptrw());
 
 			ad->unlock();
 
 			for (unsigned int i = 0; i < ad->buffer_size; i++) {
 				ad->samples_out[i] = ad->samples_in[i] >> 16;
+				ad->samples_mic_in[i] = 0;
 			}
 		}
 
 		// pa_simple_write always consumes the entire buffer
 
-		int error_code;
 		int byte_size = ad->buffer_size * sizeof(int16_t);
+		int error_code_mic;
+		if(pa_simple_read(ad->pulse_mic,ad->samples_mic_in.ptrw(), byte_size /*sizeof(ad->samples_out.ptr())*/, &error_code_mic) < 0) {
+			fprintf(stderr, "PulseAudio failed and can't recover recording: %s\n",pa_strerror(error_code_mic));
+			ad->active = false;
+			ad->exit_thread = true;
+			break;
+		}
+		for (unsigned int i = 0; i < ad->buffer_size; i++) {
+			ad->samples_mic_out[i] = ((int32_t)ad->samples_mic_in[i]) << 16;
+		}
+		int error_code;
+
 		if (pa_simple_write(ad->pulse, ad->samples_out.ptr(), byte_size, &error_code) < 0) {
 			// can't recover here
 			fprintf(stderr, "PulseAudio failed and can't recover: %s\n", pa_strerror(error_code));
@@ -325,6 +355,9 @@ AudioDriverPulseAudio::AudioDriverPulseAudio() {
 
 	samples_in.clear();
 	samples_out.clear();
+
+	samples_mic_in.clear();
+	samples_mic_out.clear();
 
 	mix_rate = 0;
 	buffer_size = 0;

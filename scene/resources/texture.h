@@ -30,13 +30,14 @@
 #ifndef TEXTURE_H
 #define TEXTURE_H
 
+#include "opencv2/opencv.hpp"
+#include "opencv2/videoio.hpp"
 #include "curve.h"
 #include "io/resource_loader.h"
 #include "math_2d.h"
 #include "resource.h"
 #include "scene/resources/color_ramp.h"
 #include "servers/visual_server.h"
-
 /**
 	@author Juan Linietsky <reduzio@gmail.com>
 */
@@ -216,6 +217,65 @@ public:
 
 	StreamTexture();
 	~StreamTexture();
+};
+
+class WebcamTexture : public Texture {
+
+	GDCLASS(WebcamTexture, Texture);
+
+public:
+	enum DataFormat {
+		DATA_FORMAT_IMAGE,
+		DATA_FORMAT_LOSSLESS,
+		DATA_FORMAT_LOSSY
+	};
+
+	enum FormatBits {
+		FORMAT_MASK_IMAGE_FORMAT = (1 << 20) - 1,
+		FORMAT_BIT_LOSSLESS = 1 << 20,
+		FORMAT_BIT_LOSSY = 1 << 21,
+		FORMAT_BIT_STREAM = 1 << 22,
+		FORMAT_BIT_HAS_MIPMAPS = 1 << 23,
+		FORMAT_BIT_DETECT_3D = 1 << 24,
+		FORMAT_BIT_DETECT_SRGB = 1 << 25,
+		FORMAT_BIT_DETECT_NORMAL = 1 << 26,
+	};
+
+private:
+	Error _load_data(int &tw, int &th, int &flags, Ref<Image> &image, int p_size_limit = 0);
+	cv::VideoCapture cap;
+	RID texture;
+	Image::Format format;
+	uint32_t flags;
+	int w, h;
+
+	virtual void reload_from_file();
+
+protected:
+	static void _bind_methods();
+
+public:
+
+	uint32_t get_flags() const;
+	Image::Format get_format() const;
+	Error load(const String &p_path);
+	String get_load_path() const;
+
+	int get_width() const;
+	int get_height() const;
+	virtual RID get_rid() const;
+
+	virtual void draw(RID p_canvas_item, const Point2 &p_pos, const Color &p_modulate = Color(1, 1, 1), bool p_transpose = false, const Ref<Texture> &p_normal_map = Ref<Texture>()) const;
+	virtual void draw_rect(RID p_canvas_item, const Rect2 &p_rect, bool p_tile = false, const Color &p_modulate = Color(1, 1, 1), bool p_transpose = false, const Ref<Texture> &p_normal_map = Ref<Texture>()) const;
+	virtual void draw_rect_region(RID p_canvas_item, const Rect2 &p_rect, const Rect2 &p_src_rect, const Color &p_modulate = Color(1, 1, 1), bool p_transpose = false, const Ref<Texture> &p_normal_map = Ref<Texture>(), bool p_clip_uv = true) const;
+
+	virtual bool has_alpha() const;
+	virtual void set_flags(uint32_t p_flags);
+
+	virtual Ref<Image> get_data() const;
+
+	WebcamTexture();
+	~WebcamTexture();
 };
 
 class ResourceFormatLoaderStreamTexture : public ResourceFormatLoader {
