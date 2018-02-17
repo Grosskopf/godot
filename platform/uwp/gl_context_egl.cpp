@@ -85,114 +85,134 @@ void ContextEGL::reset() {
 };
 
 void ContextEGL::swap_buffers() {
+    
+#ifdef HOLOGRAPHIC
+    HolographicFrame ^ holographicFrame = mHolographicSpace->CreateNextFrame();
+    holographicFrame->UpdateCurrentPrediction();
+    HolographicFramePrediction ^ prediction = holographicFrame->CurrentPrediction;
+    //m_deviceResources->EnsureCameraResources(holographicFrame, prediction);
+    // Back buffers can change from frame to frame. Validate each buffer, and recreate
+    // resource views and depth buffers as needed.
+    //m_deviceResources->EnsureCameraResources(holographicFrame, prediction);
+    SpatialCoordinateSystem ^ currentCoordinateSystem = mReferenceFrame->GetStationaryCoordinateSystemAtTimestamp(prediction->Timestamp);
+    //IHolographicCameraRenderingParameters ^ spParameters;
+    //UINT32 mHolographicCameraId=0;
+    //HolographicCameraPose^ cameraPose;
+    //holographicFrame->GetHolographicCameraPoseAt(mHolographicCameraId,cameraPose);
+    //HolographicCameraPose ^ cameraPose;
+    //cameraPose=prediction->CameraPoses->GetAt(mHolographicCameraId);
+    //holographicFrame->GetHolographicRenderingParameters(mHolographicCameraId, &spParameters)
+	IVectorView<HolographicCameraPose^>^ camPoses = prediction->CameraPoses;
+	if (camPoses->Size == 0)
+		return;
+	//prediction->get_CameraPoses(camPoses);
+	HolographicCameraPose^ cameraPose = camPoses->GetAt(camPoses->Size-1);
+	//auto cameraPose = prediction->CameraPoses->First()->Current;
+	//for (HolographicCameraPose^ cameraPose : camPoses)
+	//for (auto cameraPose : camPoses)
+	//{
+    // The projection transform for each frame is provided by the HolographicCameraPose.
+		HolographicStereoTransform cameraProjectionTransform = cameraPose->ProjectionTransform;
+		leftProj.matrix[0][0]=cameraProjectionTransform.Left.m11;//FOR
+		leftProj.matrix[0][1]=cameraProjectionTransform.Left.m12;//F*CKS
+		leftProj.matrix[0][2]=cameraProjectionTransform.Left.m13;//SAKE
+		leftProj.matrix[0][3]=cameraProjectionTransform.Left.m14;//Microsoft
+		leftProj.matrix[1][0]=cameraProjectionTransform.Left.m21;//You
+		leftProj.matrix[1][1]=cameraProjectionTransform.Left.m22;//Bloody
+		leftProj.matrix[1][2]=cameraProjectionTransform.Left.m23;//*diots
+		leftProj.matrix[1][3]=cameraProjectionTransform.Left.m24;//Microsoft
+		leftProj.matrix[2][0]=cameraProjectionTransform.Left.m31;//What
+		leftProj.matrix[2][1]=cameraProjectionTransform.Left.m32;//Where
+		leftProj.matrix[2][2]=cameraProjectionTransform.Left.m33;//You
+		leftProj.matrix[2][3]=cameraProjectionTransform.Left.m34;//Thinking
+		leftProj.matrix[3][0]=cameraProjectionTransform.Left.m41;//when
+		leftProj.matrix[3][1]=cameraProjectionTransform.Left.m42;//you
+		leftProj.matrix[3][2]=cameraProjectionTransform.Left.m43;//coded
+		leftProj.matrix[3][3]=cameraProjectionTransform.Left.m44;//this?
+		rightProj.matrix[0][0]=cameraProjectionTransform.Right.m11;//Like
+		rightProj.matrix[0][1]=cameraProjectionTransform.Right.m12;//seriously
+		rightProj.matrix[0][2]=cameraProjectionTransform.Right.m13;//did
+		rightProj.matrix[0][3]=cameraProjectionTransform.Right.m14;//Microsoft
+		rightProj.matrix[1][0]=cameraProjectionTransform.Right.m21;//hire
+		rightProj.matrix[1][1]=cameraProjectionTransform.Right.m22;//only
+		rightProj.matrix[1][2]=cameraProjectionTransform.Right.m23;//chimps
+		rightProj.matrix[1][3]=cameraProjectionTransform.Right.m24;//that
+		rightProj.matrix[2][0]=cameraProjectionTransform.Right.m31;//get
+		rightProj.matrix[2][1]=cameraProjectionTransform.Right.m32;//payed
+		rightProj.matrix[2][2]=cameraProjectionTransform.Right.m33;//by
+		rightProj.matrix[2][3]=cameraProjectionTransform.Right.m34;//the
+		rightProj.matrix[3][0]=cameraProjectionTransform.Right.m41;//line
+		rightProj.matrix[3][1]=cameraProjectionTransform.Right.m42;//of
+		rightProj.matrix[3][2]=cameraProjectionTransform.Right.m43;//f*cking
+		rightProj.matrix[3][3]=cameraProjectionTransform.Right.m44;//Code?
+		char buff[400];
+		sprintf(buff, "projtransform: %.5f, %.5f, %.5f, %.5f, %.5f, %.5f, %.5f, %.5f, %.5f, %.5f, %.5f, %.5f, %.5f, %.5f, %.5f, %.5f \n", leftProj.matrix[0][0], leftProj.matrix[0][1], leftProj.matrix[0][2], leftProj.matrix[0][3], leftProj.matrix[1][0], leftProj.matrix[1][1], leftProj.matrix[1][2], leftProj.matrix[1][3], leftProj.matrix[2][0], leftProj.matrix[2][1], leftProj.matrix[2][2], leftProj.matrix[2][3], leftProj.matrix[3][0], leftProj.matrix[3][1], leftProj.matrix[3][2], leftProj.matrix[3][3]);
+		OutputDebugStringA(buff);
+            
+        //CameraResources::UpdateViewProjectionBuffer
+		Platform::IBox<HolographicStereoTransform>^ viewTransformContainer=cameraPose->TryGetViewTransform(currentCoordinateSystem);
+        // If TryGetViewTransform returns a null pointer, that means the pose and coordinate
+        // system cannot be understood relative to one another; content cannot be rendered
+        // in this coordinate system for the duration of the current frame.
+        // This usually means that positional tracking is not active for the current frame, in
+        // which case it is possible to use a SpatialLocatorAttachedFrameOfReference to render
+        // content that is not world-locked instead.
+		bool viewTransformAcquired = viewTransformContainer != nullptr;
+		if (viewTransformAcquired)
+		{
+			HolographicStereoTransform viewTransform = viewTransformContainer->Value;
+			leftView.set(viewTransform.Left.m11,
+			    viewTransform.Left.m12,
+			    viewTransform.Left.m13,
+			    viewTransform.Left.m21,
+			    viewTransform.Left.m22,
+			    viewTransform.Left.m23,
+			    viewTransform.Left.m31,
+			    viewTransform.Left.m32,
+			    viewTransform.Left.m33,
+			    viewTransform.Left.m41,
+			    viewTransform.Left.m42,
+			    viewTransform.Left.m43
+			);
+			rightView.set(viewTransform.Right.m11,
+			    viewTransform.Right.m12,
+			    viewTransform.Right.m13,
+			    viewTransform.Right.m21,
+			    viewTransform.Right.m22,
+			    viewTransform.Right.m23,
+			    viewTransform.Right.m31,
+			    viewTransform.Right.m32,
+			    viewTransform.Right.m33,
+			    viewTransform.Right.m41,
+			    viewTransform.Right.m42,
+			    viewTransform.Right.m43
+			);
+			char buff2[400];
+			sprintf(buff2, "origin: %.5f, %.5f, %.5f, %.5f, %.5f, %.5f\n", leftView.origin.x, leftView.origin.y, leftView.origin.z, rightView.origin.x, rightView.origin.y, rightView.origin.z);
+			OutputDebugStringA(buff2);
 
+        }
+    //}
+#endif
 	if (eglSwapBuffers(mEglDisplay, mEglSurface) != EGL_TRUE) {
 		cleanup();
+        OutputDebugStringA("Hallo swap_buffers in if\n");
 
 		window = CoreWindow::GetForCurrentThread();
         
 #ifdef HOLOGRAPHIC
-        HolographicFrame ^ holographicFrame = mHolographicSpace->CreateNextFrame();
-        holographicFrame->UpdateCurrentPrediction();
-        HolographicFramePrediction ^ prediction = holographicFrame->CurrentPrediction;
-        //m_deviceResources->EnsureCameraResources(holographicFrame, prediction);
-        // Back buffers can change from frame to frame. Validate each buffer, and recreate
-        // resource views and depth buffers as needed.
-        //m_deviceResources->EnsureCameraResources(holographicFrame, prediction);
-        SpatialCoordinateSystem ^ currentCoordinateSystem = mReferenceFrame->GetStationaryCoordinateSystemAtTimestamp(prediction->Timestamp);
-        //IHolographicCameraRenderingParameters ^ spParameters;
-        UINT32 mHolographicCameraId=0;
-        //HolographicCameraPose^ cameraPose;
-        //holographicFrame->GetHolographicCameraPoseAt(mHolographicCameraId,cameraPose);
-        HolographicCameraPose ^ cameraPose;
-        cameraPose=prediction->CameraPoses->GetAt(mHolographicCameraId);
-        //holographicFrame->GetHolographicRenderingParameters(mHolographicCameraId, &spParameters)
-        //for (HolographicCameraPose^ cameraPose : prediction->CameraPoses->GetHolographicCameraPoses())
-        //{
-            // The projection transform for each frame is provided by the HolographicCameraPose.
-            HolographicStereoTransform cameraProjectionTransform = cameraPose->ProjectionTransform;
-            leftProj.matrix[0][0]=cameraProjectionTransform.Left.m11;//FOR
-            leftProj.matrix[0][1]=cameraProjectionTransform.Left.m12;//F*CKS
-            leftProj.matrix[0][2]=cameraProjectionTransform.Left.m13;//SAKE
-            leftProj.matrix[0][3]=cameraProjectionTransform.Left.m14;//Microsoft
-            leftProj.matrix[1][0]=cameraProjectionTransform.Left.m21;//You
-            leftProj.matrix[1][1]=cameraProjectionTransform.Left.m22;//Bloody
-            leftProj.matrix[1][2]=cameraProjectionTransform.Left.m23;//*diots
-            leftProj.matrix[1][3]=cameraProjectionTransform.Left.m24;//Microsoft
-            leftProj.matrix[2][0]=cameraProjectionTransform.Left.m31;//What
-            leftProj.matrix[2][1]=cameraProjectionTransform.Left.m32;//Where
-            leftProj.matrix[2][2]=cameraProjectionTransform.Left.m33;//You
-            leftProj.matrix[2][3]=cameraProjectionTransform.Left.m34;//Thinking
-            leftProj.matrix[3][0]=cameraProjectionTransform.Left.m41;//when
-            leftProj.matrix[3][1]=cameraProjectionTransform.Left.m42;//you
-            leftProj.matrix[3][2]=cameraProjectionTransform.Left.m43;//coded
-            leftProj.matrix[3][3]=cameraProjectionTransform.Left.m44;//this?
-            rightProj.matrix[0][0]=cameraProjectionTransform.Right.m11;//Like
-            rightProj.matrix[0][1]=cameraProjectionTransform.Right.m12;//seriously
-            rightProj.matrix[0][2]=cameraProjectionTransform.Right.m13;//did
-            rightProj.matrix[0][3]=cameraProjectionTransform.Right.m14;//Microsoft
-            rightProj.matrix[1][0]=cameraProjectionTransform.Right.m21;//hire
-            rightProj.matrix[1][1]=cameraProjectionTransform.Right.m22;//only
-            rightProj.matrix[1][2]=cameraProjectionTransform.Right.m23;//chimps
-            rightProj.matrix[1][3]=cameraProjectionTransform.Right.m24;//that
-            rightProj.matrix[2][0]=cameraProjectionTransform.Right.m31;//get
-            rightProj.matrix[2][1]=cameraProjectionTransform.Right.m32;//payed
-            rightProj.matrix[2][2]=cameraProjectionTransform.Right.m33;//by
-            rightProj.matrix[2][3]=cameraProjectionTransform.Right.m34;//the
-            rightProj.matrix[3][0]=cameraProjectionTransform.Right.m41;//line
-            rightProj.matrix[3][1]=cameraProjectionTransform.Right.m42;//of
-            rightProj.matrix[3][2]=cameraProjectionTransform.Right.m43;//f*cking
-            rightProj.matrix[3][3]=cameraProjectionTransform.Right.m44;//Code?
-            
-            //CameraResources::UpdateViewProjectionBuffer
-            Platform::IBox<HolographicStereoTransform>^ viewTransformContainer=cameraPose->TryGetViewTransform(currentCoordinateSystem);
-            // If TryGetViewTransform returns a null pointer, that means the pose and coordinate
-            // system cannot be understood relative to one another; content cannot be rendered
-            // in this coordinate system for the duration of the current frame.
-            // This usually means that positional tracking is not active for the current frame, in
-            // which case it is possible to use a SpatialLocatorAttachedFrameOfReference to render
-            // content that is not world-locked instead.
-            bool viewTransformAcquired = viewTransformContainer != nullptr;
-            if (viewTransformAcquired)
-            {
-                HolographicStereoTransform viewTransform = viewTransformContainer->Value;
-                leftView.set(viewTransform.Left.m11,
-                    viewTransform.Left.m12,
-                    viewTransform.Left.m13,
-                    viewTransform.Left.m21,
-                    viewTransform.Left.m22,
-                    viewTransform.Left.m23,
-                    viewTransform.Left.m31,
-                    viewTransform.Left.m32,
-                    viewTransform.Left.m33,
-                    viewTransform.Left.m41,
-                    viewTransform.Left.m42,
-                    viewTransform.Left.m43
-                );
-                rightView.set(viewTransform.Right.m11,
-                    viewTransform.Right.m12,
-                    viewTransform.Right.m13,
-                    viewTransform.Right.m21,
-                    viewTransform.Right.m22,
-                    viewTransform.Right.m23,
-                    viewTransform.Right.m31,
-                    viewTransform.Right.m32,
-                    viewTransform.Right.m33,
-                    viewTransform.Right.m41,
-                    viewTransform.Right.m42,
-                    viewTransform.Right.m43
-                );
-            //}
-        }
         initializeHolo();
+        
+        OutputDebugStringA("Schüss swap_buffers\n");
 #else
         initialize();
 #endif
 		// tell rasterizer to reload textures and stuff?
-	}
+    }
 };
 
 Error ContextEGL::initialize() {
+    OutputDebugStringA("initializing\n");
 
 	EGLint configAttribList[] = {
 		EGL_RED_SIZE, 8,
@@ -280,6 +300,7 @@ Error ContextEGL::initialize() {
 			throw Exception::CreateException(E_FAIL, L"Failed to make fullscreen EGLSurface current");
 		}
 	} catch (...) {
+        OutputDebugStringA("initialize failed\n");
 		return FAILED;
 	};
 
@@ -289,7 +310,8 @@ Error ContextEGL::initialize() {
 
 	eglQuerySurface(display, surface, EGL_WIDTH, &width);
 	eglQuerySurface(display, surface, EGL_HEIGHT, &height);
-
+    
+    OutputDebugStringA("initialize is ok\n");
 	return OK;
 };
 void ContextEGL::makewindowHolo(){
@@ -308,12 +330,15 @@ void ContextEGL::makewindowHolo(){
     // The HolographicSpace has been created, so EGL can be initialized in holographic mode.
 };
 Error ContextEGL::initializeHolo(){
+        OutputDebugStringA("initializing\n");
         if (mHolographicSpace != nullptr)
         {
+            OutputDebugStringA("initializing holographic\n");
             return initializeHolo(mHolographicSpace);
         }
         else
         {
+            OutputDebugStringA("initializing window\n");
             return initializeHolo(window);
         }
 };
@@ -321,6 +346,7 @@ Error ContextEGL::initializeHolo(){
 Error ContextEGL::initializeHolo(Platform::Object^ windowBasis) {
 
 
+    OutputDebugStringA("initializing holo2\n");
 
     // The HolographicSpace has been created, so EGL can be initialized in holographic mode.
 	const EGLint configAttributes[] = 
@@ -490,6 +516,7 @@ Error ContextEGL::initializeHolo(Platform::Object^ windowBasis) {
 	mEglContext = context;
 	eglQuerySurface(display, surface, EGL_WIDTH, &width);
 	eglQuerySurface(display, surface, EGL_HEIGHT, &height);
+    OutputDebugStringA("initializing holo_end\n");
 
 	return OK;
 };

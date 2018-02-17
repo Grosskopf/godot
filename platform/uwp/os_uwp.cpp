@@ -198,8 +198,12 @@ void OSUWP::initialize(const VideoMode &p_desired, int p_video_driver, int p_aud
 
 	main_loop = NULL;
 	outside = true;
-
+    
+#ifdef HOLOGRAPHIC
+    gl_context->initializeHolo();
+#else
 	gl_context->initialize();
+#endif
 	VideoMode vm;
 	vm.width = gl_context->get_window_width();
 	vm.height = gl_context->get_window_height();
