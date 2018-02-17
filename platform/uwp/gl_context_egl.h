@@ -61,7 +61,7 @@ class ContextEGL : public ContextGL {
     // The world coordinate system. In this example, a reference frame placed in the environment.
     Windows::Perception::Spatial::SpatialStationaryFrameOfReference ^ mStationaryReferenceFrame = nullptr;
     
-    Windows::Perception::Spatial::SpatialLocatorAttachedFrameOfReference ^ mReferenceFrame = nullptr;
+    //Windows::Perception::Spatial::SpatialLocatorAttachedFrameOfReference ^ mReferenceFrame = nullptr;
     
 
     CameraMatrix leftProj;

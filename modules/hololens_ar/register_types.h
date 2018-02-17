@@ -27,5 +27,5 @@
 /* TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE     */
 /* SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.                */
 /*************************************************************************/
-void register_hololens_vr_types();
-void unregister_hololens_vr_types();
+void register_hololens_ar_types();
+void unregister_hololens_ar_types();

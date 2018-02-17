@@ -27,8 +27,8 @@
 /* TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE     */
 /* SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.                */
 /*************************************************************************/
-#ifndef HOLOLENS_VR_INTERFACE_H
-#define HOLOLENS_VR_INTERFACE_H
+#ifndef HOLOLENS_AR_INTERFACE_H
+#define HOLOLENS_AR_INTERFACE_H
 #include "servers/arvr/arvr_interface.h"
 #include "servers/arvr/arvr_positional_tracker.h"
 
@@ -49,8 +49,8 @@
 	more advanced interfaces.
 */
 
-class HololensVRInterface : public ARVRInterface {
-	GDCLASS(HololensVRInterface, ARVRInterface);
+class HololensARInterface : public ARVRInterface {
+	GDCLASS(HololensARInterface, ARVRInterface);
 
 private:
 	bool initialized;
@@ -129,8 +129,8 @@ public:
 
 	virtual void process();
 
-	HololensVRInterface();
-	~HololensVRInterface();
+	   HololensARInterface();
+	   ~HololensARInterface();
 };
 
-#endif // HOLOLENS_VR_INTERFACE_H
+#endif // HOLOLENS_AR_INTERFACE_H

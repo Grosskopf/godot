@@ -7,7 +7,7 @@ def configure(env):
 
 def get_doc_classes():
     return [
-        "HololensVRInterface",
+        "HololensARInterface",
     ]
 
 def get_doc_path():

@@ -87,6 +87,7 @@ void ContextEGL::reset() {
 void ContextEGL::swap_buffers() {
     
 #ifdef HOLOGRAPHIC
+	CoreWindow::GetForCurrentThread()->Dispatcher->ProcessEvents(CoreProcessEventsOption::ProcessAllIfPresent);
     HolographicFrame ^ holographicFrame = mHolographicSpace->CreateNextFrame();
     holographicFrame->UpdateCurrentPrediction();
     HolographicFramePrediction ^ prediction = holographicFrame->CurrentPrediction;
@@ -94,7 +95,7 @@ void ContextEGL::swap_buffers() {
     // Back buffers can change from frame to frame. Validate each buffer, and recreate
     // resource views and depth buffers as needed.
     //m_deviceResources->EnsureCameraResources(holographicFrame, prediction);
-    SpatialCoordinateSystem ^ currentCoordinateSystem = mReferenceFrame->GetStationaryCoordinateSystemAtTimestamp(prediction->Timestamp);
+	SpatialCoordinateSystem ^ currentCoordinateSystem = mStationaryReferenceFrame->CoordinateSystem;//GetStationaryCoordinateSystemAtTimestamp(prediction->Timestamp);
     //IHolographicCameraRenderingParameters ^ spParameters;
     //UINT32 mHolographicCameraId=0;
     //HolographicCameraPose^ cameraPose;
@@ -147,7 +148,7 @@ void ContextEGL::swap_buffers() {
 		rightProj.matrix[3][3]=cameraProjectionTransform.Right.m44;//Code?
 		char buff[400];
 		sprintf(buff, "projtransform: %.5f, %.5f, %.5f, %.5f, %.5f, %.5f, %.5f, %.5f, %.5f, %.5f, %.5f, %.5f, %.5f, %.5f, %.5f, %.5f \n", leftProj.matrix[0][0], leftProj.matrix[0][1], leftProj.matrix[0][2], leftProj.matrix[0][3], leftProj.matrix[1][0], leftProj.matrix[1][1], leftProj.matrix[1][2], leftProj.matrix[1][3], leftProj.matrix[2][0], leftProj.matrix[2][1], leftProj.matrix[2][2], leftProj.matrix[2][3], leftProj.matrix[3][0], leftProj.matrix[3][1], leftProj.matrix[3][2], leftProj.matrix[3][3]);
-		OutputDebugStringA(buff);
+		//OutputDebugStringA(buff);
             
         //CameraResources::UpdateViewProjectionBuffer
 		Platform::IBox<HolographicStereoTransform>^ viewTransformContainer=cameraPose->TryGetViewTransform(currentCoordinateSystem);
@@ -172,7 +173,7 @@ void ContextEGL::swap_buffers() {
 			    viewTransform.Left.m33,
 			    viewTransform.Left.m41,
 			    viewTransform.Left.m42,
-			    viewTransform.Left.m43
+			    viewTransform.Left.m43+1.3f
 			);
 			rightView.set(viewTransform.Right.m11,
 			    viewTransform.Right.m12,
@@ -185,11 +186,11 @@ void ContextEGL::swap_buffers() {
 			    viewTransform.Right.m33,
 			    viewTransform.Right.m41,
 			    viewTransform.Right.m42,
-			    viewTransform.Right.m43
+			    viewTransform.Right.m43 + 1.3f
 			);
 			char buff2[400];
 			sprintf(buff2, "origin: %.5f, %.5f, %.5f, %.5f, %.5f, %.5f\n", leftView.origin.x, leftView.origin.y, leftView.origin.z, rightView.origin.x, rightView.origin.y, rightView.origin.z);
-			OutputDebugStringA(buff2);
+			//OutputDebugStringA(buff2);
 
         }
     //}
@@ -325,7 +326,7 @@ void ContextEGL::makewindowHolo(){
 
     // Create a stationary frame of reference.
     mStationaryReferenceFrame = locator->CreateStationaryFrameOfReferenceAtCurrentLocation();
-    mReferenceFrame = locator->CreateAttachedFrameOfReferenceAtCurrentHeading();
+    //mReferenceFrame = locator->CreateAttachedFrameOfReferenceAtCurrentHeading();
 
     // The HolographicSpace has been created, so EGL can be initialized in holographic mode.
 };

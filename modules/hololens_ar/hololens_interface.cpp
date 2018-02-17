@@ -43,15 +43,15 @@
 //#include <GLES3/gl3platform.h>
 //#include "angle_gl.h"
 using namespace Windows::UI::Core;
-StringName HololensVRInterface::get_name() const {
+StringName HololensARInterface::get_name() const {
 	return "Native hololens";
 };
 
-int HololensVRInterface::get_capabilities() const {
+int HololensARInterface::get_capabilities() const {
 	return ARVRInterface::ARVR_STEREO;
 };
 
-void HololensVRInterface::set_position_from_sensors() {
+void HololensARInterface::set_position_from_sensors() {
 	_THREAD_SAFE_METHOD_
 
 	// this is a helper function that attempts to adjust our transform using our 9dof sensors
@@ -74,24 +74,24 @@ void HololensVRInterface::set_position_from_sensors() {
 	last_ticks = ticks;
 };
 
-void HololensVRInterface::_bind_methods() {
-	ClassDB::bind_method(D_METHOD("set_iod", "iod"), &HololensVRInterface::set_iod);
-	ClassDB::bind_method(D_METHOD("get_iod"), &HololensVRInterface::get_iod);
+void HololensARInterface::_bind_methods() {
+	ClassDB::bind_method(D_METHOD("set_iod", "iod"), &HololensARInterface::set_iod);
+	ClassDB::bind_method(D_METHOD("get_iod"), &HololensARInterface::get_iod);
 
-	ClassDB::bind_method(D_METHOD("set_display_width", "display_width"), &HololensVRInterface::set_display_width);
-	ClassDB::bind_method(D_METHOD("get_display_width"), &HololensVRInterface::get_display_width);
+	ClassDB::bind_method(D_METHOD("set_display_width", "display_width"), &HololensARInterface::set_display_width);
+	ClassDB::bind_method(D_METHOD("get_display_width"), &HololensARInterface::get_display_width);
 
-	ClassDB::bind_method(D_METHOD("set_display_to_lens", "display_to_lens"), &HololensVRInterface::set_display_to_lens);
-	ClassDB::bind_method(D_METHOD("get_display_to_lens"), &HololensVRInterface::get_display_to_lens);
+	ClassDB::bind_method(D_METHOD("set_display_to_lens", "display_to_lens"), &HololensARInterface::set_display_to_lens);
+	ClassDB::bind_method(D_METHOD("get_display_to_lens"), &HololensARInterface::get_display_to_lens);
 
-	ClassDB::bind_method(D_METHOD("set_oversample", "oversample"), &HololensVRInterface::set_oversample);
-	ClassDB::bind_method(D_METHOD("get_oversample"), &HololensVRInterface::get_oversample);
+	ClassDB::bind_method(D_METHOD("set_oversample", "oversample"), &HololensARInterface::set_oversample);
+	ClassDB::bind_method(D_METHOD("get_oversample"), &HololensARInterface::get_oversample);
 
-	ClassDB::bind_method(D_METHOD("set_k1", "k"), &HololensVRInterface::set_k1);
-	ClassDB::bind_method(D_METHOD("get_k1"), &HololensVRInterface::get_k1);
+	ClassDB::bind_method(D_METHOD("set_k1", "k"), &HololensARInterface::set_k1);
+	ClassDB::bind_method(D_METHOD("get_k1"), &HololensARInterface::get_k1);
 
-	ClassDB::bind_method(D_METHOD("set_k2", "k"), &HololensVRInterface::set_k2);
-	ClassDB::bind_method(D_METHOD("get_k2"), &HololensVRInterface::get_k2);
+	ClassDB::bind_method(D_METHOD("set_k2", "k"), &HololensARInterface::set_k2);
+	ClassDB::bind_method(D_METHOD("get_k2"), &HololensARInterface::get_k2);
 
 	ADD_PROPERTY(PropertyInfo(Variant::REAL, "iod", PROPERTY_HINT_RANGE, "4.0,10.0,0.1"), "set_iod", "get_iod");
 	ADD_PROPERTY(PropertyInfo(Variant::REAL, "display_width", PROPERTY_HINT_RANGE, "5.0,25.0,0.1"), "set_display_width", "get_display_width");
@@ -101,64 +101,64 @@ void HololensVRInterface::_bind_methods() {
 	ADD_PROPERTY(PropertyInfo(Variant::REAL, "k2", PROPERTY_HINT_RANGE, "0.1,10.0,0.0001"), "set_k2", "get_k2");
 }
 
-void HololensVRInterface::set_iod(const real_t p_iod) {
+void HololensARInterface::set_iod(const real_t p_iod) {
 	intraocular_dist = p_iod;
 };
 
-real_t HololensVRInterface::get_iod() const {
+real_t HololensARInterface::get_iod() const {
 	return intraocular_dist;
 };
 
-void HololensVRInterface::set_display_width(const real_t p_display_width) {
+void HololensARInterface::set_display_width(const real_t p_display_width) {
 	display_width = p_display_width;
 };
 
-real_t HololensVRInterface::get_display_width() const {
+real_t HololensARInterface::get_display_width() const {
 	return display_width;
 };
 
-void HololensVRInterface::set_display_to_lens(const real_t p_display_to_lens) {
+void HololensARInterface::set_display_to_lens(const real_t p_display_to_lens) {
 	display_to_lens = p_display_to_lens;
 };
 
-real_t HololensVRInterface::get_display_to_lens() const {
+real_t HololensARInterface::get_display_to_lens() const {
 	return display_to_lens;
 };
 
-void HololensVRInterface::set_oversample(const real_t p_oversample) {
+void HololensARInterface::set_oversample(const real_t p_oversample) {
 	oversample = p_oversample;
 };
 
-real_t HololensVRInterface::get_oversample() const {
+real_t HololensARInterface::get_oversample() const {
 	return oversample;
 };
 
-void HololensVRInterface::set_k1(const real_t p_k1) {
+void HololensARInterface::set_k1(const real_t p_k1) {
 	k1 = p_k1;
 };
 
-real_t HololensVRInterface::get_k1() const {
+real_t HololensARInterface::get_k1() const {
 	return k1;
 };
 
-void HololensVRInterface::set_k2(const real_t p_k2) {
+void HololensARInterface::set_k2(const real_t p_k2) {
 	k2 = p_k2;
 };
 
-real_t HololensVRInterface::get_k2() const {
+real_t HololensARInterface::get_k2() const {
 	return k2;
 };
 
-bool HololensVRInterface::is_stereo() {
+bool HololensARInterface::is_stereo() {
 	// needs stereo...
 	return true;
 };
 
-bool HololensVRInterface::is_initialized() {
+bool HololensARInterface::is_initialized() {
 	return (initialized);
 };
 
-bool HololensVRInterface::initialize() {
+bool HololensARInterface::initialize() {
     OutputDebugStringA("initARInterface\n");
 	ARVRServer *arvr_server = ARVRServer::get_singleton();
 	ERR_FAIL_NULL_V(arvr_server, false);
@@ -178,7 +178,7 @@ bool HololensVRInterface::initialize() {
 	return true;
 };
 
-void HololensVRInterface::uninitialize() {
+void HololensARInterface::uninitialize() {
 	if (initialized) {
 		ARVRServer *arvr_server = ARVRServer::get_singleton();
 		if (arvr_server != NULL) {
@@ -190,7 +190,7 @@ void HololensVRInterface::uninitialize() {
 	};
 };
 
-Size2 HololensVRInterface::get_render_targetsize() {
+Size2 HololensARInterface::get_render_targetsize() {
 	_THREAD_SAFE_METHOD_
 
 	// we use half our window size
@@ -201,9 +201,10 @@ Size2 HololensVRInterface::get_render_targetsize() {
 	return target_size;
 };
 
-Transform HololensVRInterface::get_transform_for_eye(ARVRInterface::Eyes p_eye, const Transform &p_cam_transform) {
+Transform HololensARInterface::get_transform_for_eye(ARVRInterface::Eyes p_eye, const Transform &p_cam_transform) {
 	_THREAD_SAFE_METHOD_
-    OutputDebugStringA("get_transform_for_eye\n");
+    OutputDebugStringA("get_transform_for_eye ");
+    ARVRInterface::EYE_LEFT==p_eye ? OutputDebugStringA("Left") : OutputDebugStringA("Right");
     Transform result;
 	OSUWP *os=dynamic_cast<OSUWP*>(OS::get_singleton());
     if(initialized)
@@ -243,7 +244,7 @@ Transform HololensVRInterface::get_transform_for_eye(ARVRInterface::Eyes p_eye, 
 	return transform_for_eye;*/
 };
 
-CameraMatrix HololensVRInterface::get_projection_for_eye(ARVRInterface::Eyes p_eye, real_t p_aspect, real_t p_z_near, real_t p_z_far) {
+CameraMatrix HololensARInterface::get_projection_for_eye(ARVRInterface::Eyes p_eye, real_t p_aspect, real_t p_z_near, real_t p_z_far) {
 	_THREAD_SAFE_METHOD_
 	OSUWP *os=dynamic_cast<OSUWP*>(OS::get_singleton());
     CameraMatrix result;
@@ -274,7 +275,7 @@ CameraMatrix HololensVRInterface::get_projection_for_eye(ARVRInterface::Eyes p_e
 
 	//return eye;
 };
-void HololensVRInterface::commit_for_eye(ARVRInterface::Eyes p_eye, RID p_render_target, const Rect2 &p_screen_rect) {
+void HololensARInterface::commit_for_eye(ARVRInterface::Eyes p_eye, RID p_render_target, const Rect2 &p_screen_rect) {
 	_THREAD_SAFE_METHOD_
 
 	// We must have a valid render target
@@ -318,14 +319,14 @@ void HololensVRInterface::commit_for_eye(ARVRInterface::Eyes p_eye, RID p_render
 	glDrawArrays(GL_TRIANGLE_FAN, 0, 4);
 	glBindVertexArray(0);*/
 };
-void HololensVRInterface::process() {
+void HololensARInterface::process() {
 	_THREAD_SAFE_METHOD_
 
 	if (initialized) {
 		set_position_from_sensors();
 	};
 };
-HololensVRInterface::HololensVRInterface() {
+HololensARInterface::HololensARInterface() {
 	initialized = false;
 
 	// Just set some defaults for these. At some point we need to look at adding a lookup table for common device + headset combos and/or support reading cardboard QR codes
@@ -340,7 +341,7 @@ HololensVRInterface::HololensVRInterface() {
 
 };
 
-HololensVRInterface::~HololensVRInterface() {
+HololensARInterface::~HololensARInterface() {
 	// and make sure we cleanup if we haven't already
 	if (is_initialized()) {
 		uninitialize();

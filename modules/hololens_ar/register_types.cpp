@@ -31,13 +31,13 @@
 
 #include "hololens_interface.h"
 
-void register_hololens_vr_types() {
-	ClassDB::register_class<HololensVRInterface>();
+void register_hololens_ar_types() {
+	ClassDB::register_class<HololensARInterface>();
 
-	Ref<HololensVRInterface> hololens_vr;
-	hololens_vr.instance();
-	ARVRServer::get_singleton()->add_interface(hololens_vr);
+	Ref<HololensARInterface> hololens_ar;
+	hololens_ar.instance();
+	ARVRServer::get_singleton()->add_interface(hololens_ar);
 }
 
-void unregister_hololens_vr_types() {
+void unregister_hololens_ar_types() {
 }
