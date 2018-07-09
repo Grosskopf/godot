@@ -359,13 +359,19 @@ Error ContextEGL::initializeHolo(Platform::Object^ windowBasis) {
         EGL_ALPHA_SIZE, 8,
         EGL_DEPTH_SIZE, 8,
         EGL_STENCIL_SIZE, 8,
+		EGL_SAMPLE_BUFFERS, 0,//test
         EGL_NONE
     };
     const EGLint contextAttributes[] = 
     { 
-        EGL_CONTEXT_CLIENT_VERSION, 2, 
-        EGL_NONE
+        //EGL_CONTEXT_CLIENT_VERSION, 2, 
+        //EGL_NONE
+        //test:
+        EGL_CONTEXT_CLIENT_VERSION, 3, EGL_NONE
     };
+	EGLint surfaceAttribList[] = {
+		EGL_NONE, EGL_NONE
+	};
         const EGLint surfaceAttributes[] =
     {
         // EGL_ANGLE_SURFACE_RENDER_TO_BACK_BUFFER is part of the same optimization as EGL_ANGLE_DISPLAY_ALLOW_RENDER_TO_BACK_BUFFER (see above).
@@ -381,15 +387,17 @@ Error ContextEGL::initializeHolo(Platform::Object^ windowBasis) {
 	EGLContext context = EGL_NO_CONTEXT;
 	EGLSurface surface = EGL_NO_SURFACE;
 	EGLConfig config = nullptr;
-    const EGLint defaultDisplayAttributes[] =
+    //const EGLint defaultDisplayAttributes[] =
+    const EGLint defaultDisplayAttributes[] = 
     {
         // These are the default display attributes, used to request ANGLE's D3D11 renderer.
         // eglInitialize will only succeed with these attributes if the hardware supports D3D11 Feature Level 10_0+.
         EGL_PLATFORM_ANGLE_TYPE_ANGLE, EGL_PLATFORM_ANGLE_TYPE_D3D11_ANGLE,
+		EGL_ANGLE_DISPLAY_ALLOW_RENDER_TO_BACK_BUFFER, EGL_TRUE,
 
         // EGL_ANGLE_DISPLAY_ALLOW_RENDER_TO_BACK_BUFFER is an optimization that can have large performance benefits on mobile devices.
         // Its syntax is subject to change, though. Please update your Visual Studio templates if you experience compilation issues with it.
-        EGL_ANGLE_DISPLAY_ALLOW_RENDER_TO_BACK_BUFFER, EGL_TRUE,
+        //EGL_ANGLE_DISPLAY_ALLOW_RENDER_TO_BACK_BUFFER, EGL_TRUE, test
         
         // EGL_PLATFORM_ANGLE_ENABLE_AUTOMATIC_TRIM_ANGLE is an option that enables ANGLE to automatically call 
         // the IDXGIDevice3::Trim method on behalf of the application when it gets suspended. 
@@ -417,7 +425,7 @@ Error ContextEGL::initializeHolo(Platform::Object^ windowBasis) {
         EGL_ANGLE_DISPLAY_ALLOW_RENDER_TO_BACK_BUFFER, EGL_TRUE,
         EGL_PLATFORM_ANGLE_ENABLE_AUTOMATIC_TRIM_ANGLE, EGL_TRUE,
         EGL_NONE,
-    };
+    };//test
         //EGLConfig config = NULL;
 
     // eglGetPlatformDisplayEXT is an alternative to eglGetDisplay. It allows us to pass in display attributes, used to configure D3D11.
@@ -444,9 +452,12 @@ Error ContextEGL::initializeHolo(Platform::Object^ windowBasis) {
         throw Exception::CreateException(E_FAIL, L"Failed to get EGL display");
     }
 
+    //if (eglInitialize(display, &majorVersion, &minorVersion) == EGL_FALSE)
     if (eglInitialize(display, NULL, NULL) == EGL_FALSE)
     {
+        //throw Exception::CreateException(E_FAIL, L"Failed to initialize EGL");
         // This tries to initialize EGL to D3D11 Feature Level 9_3, if 10_0+ is unavailable (e.g. on some mobile devices).
+        //throw Exception::CreateException(E_FAIL, L"Failed to get function eglGetPlatformDisplayEXT");
         display = eglGetPlatformDisplayEXT(EGL_PLATFORM_ANGLE_ANGLE, EGL_DEFAULT_DISPLAY, fl9_3DisplayAttributes);
         if (display == EGL_NO_DISPLAY)
         {
@@ -469,8 +480,12 @@ Error ContextEGL::initializeHolo(Platform::Object^ windowBasis) {
             }
         }
     }
-
+    //test
+    //if (eglGetConfigs(display, NULL, 0, &numConfigs) == EGL_FALSE) {
+	//		throw Exception::CreateException(E_FAIL, L"Failed to get EGLConfig count");
+    //}
     //EGLint numConfigs = 0;
+    //if (eglChooseConfig(display, configAttributes, &config, 1, &numConfigs) == EGL_FALSE)
     if ((eglChooseConfig(display, configAttributes, &config, 1, &numConfigs) == EGL_FALSE) || (numConfigs == 0))
     {
         throw Exception::CreateException(E_FAIL, L"Failed to choose first EGLConfig");
@@ -482,7 +497,15 @@ Error ContextEGL::initializeHolo(Platform::Object^ windowBasis) {
     if (mStationaryReferenceFrame != nullptr)
     {
         surfaceCreationProperties->Insert(ref new Platform::String(EGLBaseCoordinateSystemProperty), mStationaryReferenceFrame);
+        //surfaceCreationProperties->Insert(ref new Platform::String(EGLAutomaticStereoRenderingProperty), PropertyValue::CreateBoolean(true));
+        //surfaceCreationProperties->Insert(ref new Platform::String(EGLAutomaticDepthBasedImageStabilizationProperty), PropertyValue::CreateBoolean(true));
     }
+	/*if (window != nullptr)
+	{
+		window->Insert(ref new Platform::String(EGLBaseCoordinateSystemProperty), mStationaryReferenceFrame);
+		window->Insert(ref new String(EGLAutomaticStereoRenderingProperty), PropertyValue::CreateBoolean(true));
+		window->Insert(ref new String(EGLAutomaticDepthBasedImageStabilizationProperty), PropertyValue::CreateBoolean(true));
+	}*/
 
     // You can configure the surface to render at a lower resolution and be scaled up to
     // the full window size. This scaling is often free on mobile hardware.
@@ -496,6 +519,7 @@ Error ContextEGL::initializeHolo(Platform::Object^ windowBasis) {
     // float customResolutionScale = 0.5f;
     // surfaceCreationProperties->Insert(ref new String(EGLRenderResolutionScaleProperty), PropertyValue::CreateSingle(customResolutionScale));
 
+    //surface = eglCreateWindowSurface(display, config, reinterpret_cast<IInspectable*>(surfaceCreationProperties), surfaceAttributes);test
     surface = eglCreateWindowSurface(display, config, reinterpret_cast<IInspectable*>(surfaceCreationProperties), surfaceAttributes);
     if (surface == EGL_NO_SURFACE)
     {

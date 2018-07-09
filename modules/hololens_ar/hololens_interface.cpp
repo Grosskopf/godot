@@ -204,12 +204,12 @@ Size2 HololensARInterface::get_render_targetsize() {
 Transform HololensARInterface::get_transform_for_eye(ARVRInterface::Eyes p_eye, const Transform &p_cam_transform) {
 	_THREAD_SAFE_METHOD_
     OutputDebugStringA("get_transform_for_eye ");
-    ARVRInterface::EYE_LEFT==p_eye ? OutputDebugStringA("Left") : OutputDebugStringA("Right");
+    ARVRInterface::EYE_RIGHT!=p_eye ? OutputDebugStringA("Left") : OutputDebugStringA("Right");
     Transform result;
 	OSUWP *os=dynamic_cast<OSUWP*>(OS::get_singleton());
     if(initialized)
     {
-        ARVRInterface::EYE_LEFT==p_eye ? result=os->get_view_matrix_left_eye() : result=os->get_view_matrix_right_eye();
+        ARVRInterface::EYE_RIGHT!=p_eye ? result=os->get_view_matrix_left_eye() : result=os->get_view_matrix_right_eye();
     }
     OutputDebugStringA((String(result)+"\n").utf8());
 	return result;
@@ -250,7 +250,7 @@ CameraMatrix HololensARInterface::get_projection_for_eye(ARVRInterface::Eyes p_e
     CameraMatrix result;
     if(initialized)
     {
-        ARVRInterface::EYE_LEFT==p_eye ? result=os->get_projection_matrix_left_eye() : result=os->get_projection_matrix_right_eye();
+        ARVRInterface::EYE_RIGHT!=p_eye ? result=os->get_projection_matrix_left_eye() : result=os->get_projection_matrix_right_eye();
     }
     OutputDebugStringA((String(result)+"\n").utf8());
     return result;
@@ -288,7 +288,7 @@ void HololensARInterface::commit_for_eye(ARVRInterface::Eyes p_eye, RID p_render
 	float aspect_ratio = 0.5 * p_screen_rect.size.x / p_screen_rect.size.y;
 	Vector2 eye_center;
 
-	if (p_eye == ARVRInterface::EYE_LEFT) {
+	if (p_eye != ARVRInterface::EYE_RIGHT) {
 		offset_x = -1.0;
 		eye_center.x = ((-intraocular_dist / 2.0) + (display_width / 4.0)) / (display_width / 2.0);
 	} else if (p_eye == ARVRInterface::EYE_RIGHT) {
