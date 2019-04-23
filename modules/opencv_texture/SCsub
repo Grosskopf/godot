@@ -1,0 +1,53 @@
+#!/usr/bin/env python
+
+Import('env')
+Import('env_modules')
+env_opencv_texture = env_modules.Clone()
+env.Append(LIBS=['opencv_videoio','opencv_core'])
+#env.Append(CPPPATH=['/usr/inlude/opencv4'])
+#env_opencv_texture.Append(LIBS=['opencv_videoio','opencv_core'])
+#env_opencv_texture.Append(LINKFLAGS=['-lopencv_videoio', '-lopencv_core'])
+#env_opencv_texture.Prepend(LIBPATH=['/vault/godot-opencv/opencv/build/lib'])
+#env_opencv_texture.Append(LIBPATH=['/usr/local/lib64'])
+env_opencv_texture.Append(CPPPATH=['/usr/local/inlude/opencv4'])
+#env_opencv_texture.Append(CPPPATH=['/usr/inlude/opencv4'])
+
+# Thirdparty source files
+#thirdparty_dir = "#thirdparty/opencv4/"
+#thirdparty_sources = [
+#    "libopencv_core.so",
+#    "libopencv_videoio.so"
+#    "opencv.hpp",
+#]
+#thirdparty_sources = [thirdparty_dir + file for file in thirdparty_sources]
+#lib = env.add_library("opencv", 'opencv_core')
+#senv.Prepend(LIBS=['opencv_core', 'opencv_videoio'])
+env_opencv_texture.add_source_files(env.modules_sources, "*.cpp")
+env_opencv_texture.Append(CPPPATH=["#thirdparty/opencv/modules/calib3d/include"])
+env_opencv_texture.Append(CPPPATH=["#thirdparty/opencv/modules/features2d/include"])
+env_opencv_texture.Append(CPPPATH=["#thirdparty/opencv/modules/flann/include"])
+env_opencv_texture.Append(CPPPATH=["#thirdparty/opencv/modules/videoio/include"])
+env_opencv_texture.Append(CPPPATH=["#thirdparty/opencv/modules/dnn/include"])
+env_opencv_texture.Append(CPPPATH=["#thirdparty/opencv/modules/highgui/include"])
+env_opencv_texture.Append(CPPPATH=["#thirdparty/opencv/modules/imgcodecs/include"])
+env_opencv_texture.Append(CPPPATH=["#thirdparty/opencv/modules/imgproc/include"])
+env_opencv_texture.Append(CPPPATH=["#thirdparty/opencv/modules/ml/include"])
+env_opencv_texture.Append(CPPPATH=["#thirdparty/opencv/modules/objdetect/include"])
+env_opencv_texture.Append(CPPPATH=["#thirdparty/opencv/modules/photo/include"])
+env_opencv_texture.Append(CPPPATH=["#thirdparty/opencv/modules/stitching/include"])
+env_opencv_texture.Append(CPPPATH=["#thirdparty/opencv/modules/video/include"])
+env_opencv_texture.Append(CPPPATH=["#thirdparty/opencv/modules/core/include"])
+env_opencv_texture.Append(CPPPATH=["#thirdparty/opencv/include"])
+env_opencv_texture.Append(CPPPATH=["#thirdparty/opencv/build"])
+#env_opencv_texture.Append(LIBPATH=[thirdparty_dir+'lib64/'])
+#env_opencv_texture.Append(CPPPATH=[thirdparty_dir+'include/'])
+
+#env_opencv_texture.Append(LIBPATH=["#thirdparty/opencv4/lib64/"])
+
+#env_thirdparty = env_opencv_texture.Clone()
+
+#env_thirdparty.disable_warnings()
+#env_thirdparty.add_source_files(env.modules_sources, thirdparty_sources)
+#env_opencv_texture.add_source_files(env.modules_sources, thirdparty_sources)
+
+# Godot's own source files
